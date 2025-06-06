@@ -1,0 +1,59 @@
+from enum import Enum
+
+from pydantic.dataclasses import dataclass
+
+
+class RasterType(Enum):
+    SENTINEL2 = "sentinel-2"
+    LANDSAT8 = "landsat"
+
+
+class HDFType(Enum):
+    ICESAT2 = "icesat-2"
+
+
+class VectorType(Enum):
+    GPKG = "gpkg"
+    SHAPEFILE = "shapefile"
+
+
+class ParquetType(Enum):
+    PARQUET = "parquet"
+    GEOPARQUET = "geoparquet"
+
+class DirectoryType(Enum):
+    BRONZE = "bronze"
+    SILVER = "silver"
+    GOLD = "gold"
+    PLATINUM = "platinum"
+
+@dataclass
+class BronzeType:
+    Rasters: list[RasterType] | None = None
+    HDF: list[HDFType] | None = None
+    Vector: list[VectorType] | None = None
+
+@dataclass
+class SilverType:
+    Rasters: list[RasterType] | None = None
+    Parquet: list[ParquetType.PARQUET] | None = None
+    GeoParquet: list[ParquetType.GEOPARQUET] | None = None
+
+
+@dataclass
+class GoldType:
+    Rasters: list[RasterType] | None = None
+    Vector: list[VectorType] | None = None
+
+
+@dataclass
+class PlatinumType:
+    Rasters: list[RasterType] | None = None
+    Vector: list[VectorType] | None = None
+
+
+@dataclass
+class DataConfig:
+    storage_account_url: str
+    directories: list[BronzeType | SilverType | GoldType | PlatinumType]
+    output_directory: str
