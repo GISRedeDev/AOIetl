@@ -159,35 +159,36 @@ processing:
             sublayer: mean
 
 dataConfig:
-    date: 2025-03-19
-    azureRoot: ./
-    aoi: aoi.shp
-    directories:
-        - Bronze:
-            - raster:
-                - sentinel-2
-                - landsat
-            - hdf:
-                - icesat-2
-            - vector:
-                - example.gpkg  # This should be confirmed
-        - Silver:
-            - raster:
-                - sentinel-2
-                - landsat
-            - parquet:
-                - example.parquet
-            - geoparquet:
-                - example.parquet
-        - Gold:
-            - raster:
-                - example.tif  # Do sentinel or landsat go in here?
-            - vector:
-                - example.gpkg  # What goes here?
-        - Platinum:
-            - raster:
-                - example.tif  # Do sentinel or landsat go in here?
-            - vector:
-                - example.gpkg  # What goes here?
+  date: 2025-03-19
+  azureRoot: ./
+  aoi: aoi.shp
+  directories:
+    bronze:
+      raster:
+        - sentinel-2
+        - landsat
+      hdf:
+        - icesat-2
+      vector:
+        - points.gpkg
+    silver:
+      raster:
+        - sentinel-2
+        - landsat
+      parquet:
+        - table.parquet
+      geoparquet:
+        - points.parquet
+    gold:
+      raster:
+        - example.tif
+      vector:
+        - example.gpkg
+    platinum:
+      raster:
+        - sentinel-2
+        - landsat
+      vector:
+        - points.gpkg
 
             
