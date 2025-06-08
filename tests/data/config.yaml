@@ -40,7 +40,7 @@ cores: 10
 # Format should be YYYY-MM-DD
 # NOTE: if you are overwriting on a previous model, it must match that date.
 # ***
-date: 2025-03-19
+date: 2025-04-01
     
 
 ##  DIRECTORIES  --------------------------------------------------------------
@@ -159,9 +159,9 @@ processing:
             sublayer: mean
 
 dataConfig:
-  date: 2025-03-19
+  date: 2025-04-01
   azureRoot: ./
-  aoi: aoi.shp
+  aoi: aoi/aoi_test.gpkg
   directories:
     bronze:
       raster:
@@ -176,14 +176,15 @@ dataConfig:
         - sentinel-2
         - landsat
       parquet:
-        - table.parquet
+        - bathymetry_reference.parquet
       geoparquet:
         - points.parquet
     gold:
       raster:
-        - example.tif
+        - sentinel-2
+        - landsat
       vector:
-        - example.gpkg
+        - points.gpkg
     platinum:
       raster:
         - sentinel-2

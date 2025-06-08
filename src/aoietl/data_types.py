@@ -15,14 +15,14 @@ class HDFType(str, Enum):
     # TODO add more HDF types as needed
 
 class VectorType(str, Enum):
-    EXAMPLE_GPKG = "example.gpkg"
+    EXAMPLE_GPKG = "points.gpkg"
     # GPGKG = "gpkg"
     # SHAPEFILE = "shapefile"
     # TODO Will gpkgs be in folders or root? Layer names? Will there be shps?
 
 class ParquetType(str, Enum):
-    EXAMPLE_PARQUET = "example.parquet"
-    BATHYMETRY_REFERENCE = "bathymetry_reference"
+    EXAMPLE_PARQUET = "points.parquet"
+    BATHYMETRY_REFERENCE = "bathymetry_reference.parquet"
     # TODO Will parquet be in folders or root?
 
 class DirectoryType(str, Enum):
