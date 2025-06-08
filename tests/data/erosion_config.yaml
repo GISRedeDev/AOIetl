@@ -1,0 +1,193 @@
+---
+# NOTE: All items representing file paths should end in a "/"
+#
+# USER NOTES
+# This file should be located within a folder called config/ which is located 
+# in the main project directory. The main project directory should be the path
+# given to the working_directory value below.
+#
+# Parameters that are likely to change between runs or users are indicated with 
+# an *** above their line; please check to make sure they have been set 
+# correctly.
+#
+# WORKING DIRECTORY  ----------------------------------------------------------
+# ***
+workflow_folder: workflow_erosion/
+
+
+# ENV VARIABLES
+python:
+    # Path to Python executable
+    python_path: C:/Users/Jeremiah/miniconda3/python.exe
+    # Path to miniconda binary executable
+    conda_path: C:/Users/Jeremiah/miniconda3/condabin/conda.bat
+    # Name of the virtual conda env to use
+    conda_env: C:/Users/Jeremiah/Projects/General_Resources/copernicusmarine
+    # List of the packages needed in the conda env
+    conda_pkgs:
+        - copernicusmarine
+
+
+# AUTHS  ----------------------------------------------------------------------
+# Assumes auth files sit in the working directory
+auth:
+    wave: auth_copernicus.txt
+
+# PROCESSING OPERATIONS  ------------------------------------------------------
+#  Number of threads/cores to utilise
+cores: 10
+# Date; This value is used in directory and file name generation.
+# Format should be YYYY-MM-DD
+# NOTE: if you are overwriting on a previous model, it must match that date.
+# ***
+date: 2025-03-19
+    
+
+##  DIRECTORIES  --------------------------------------------------------------
+# All directories specified below should end in a / except for output_base
+directories:
+    # Data Dir
+    data_dir: data/
+    # Covariate Dir
+    # Appended to data_dir
+    covariates:
+        raw: covariates/raw/
+        intermediate: covariates/intermediate/
+
+    # Reference Dir
+    # Appended to data_dir
+    reference:
+        raw: reference/raw/
+        intermediate: reference/intermediate/
+    # Mask directory
+    # Appended to the data_dir
+    mask: masks/
+    # Shoreline directory
+    # Appended to the data_dir
+    shoreline: shoreline/
+    # Diagnostics directory
+    # Appended to the output_dir
+    diagnostics: diagnostics/
+    # Training Dir
+    # Appended to output_dir
+    training_dir: training/
+    # Output Dir
+    # The relative path containing the base name pattern for the output; it 
+    # will be fully constructed inthe R code with the date and the 
+    # output_suffix
+    output_base: output/erosion
+    # Suffix to add to the output model run directories; must begin with an 
+    # underscore
+    # ***
+    output_suffix: _mooloolaba
+
+##  FILES  --------------------------------------------------------------------
+files:   
+    aoi: aoi.shp
+    # Wave data base name
+    wave_base: gowr_wave
+
+##  PROCESSING  ---------------------------------------------------------------
+processing:
+    baseline:
+        baseline_date: 2023-06-15
+
+    transects:
+        # Distance the baseline buffer should be from the input shoreline, in 
+        # meters
+        baseline_buffer_dist: 100
+        # Magnitude of smoothing in the transect baseline creation
+        smooth_magnitude: 50
+        # Max distance between transect centerlines, in meters
+        transect_width: 100
+        # Total length of the transect
+        transect_length: 500
+        # Minimum feature shore length
+        min_shore_length: 500
+        #  Type of transect to construct
+        mode: inward
+
+    shoreline:
+        # List of incremental refit values, in meters, to use when looking for
+        # shoreline intersections with the centerline of transects. These 
+        # values are iteratively used to extend the centerline in search of an
+        # intersection when intersections are missing.
+        iterative_refit: [100, 100, 100, 100, 100, 100]
+        # Minimum observations of shoreline points for a transect to be 
+        # retained; value should be between 0 and 1 as we dclare the minimum 
+        # proportion and then determin the count equivalent in the process.
+        min_obs: 0.8
+
+    wave:
+        # Date time formats must be YYYY-MM-ddThh:mm:ss
+        # Start date limit is "1993-01-01T00:00:00"
+        start_date: 1980-01-01T00:00:00
+        end_date: 2023-04-30T21:00:00
+        
+        direction_dataset_id: cmems_mod_glo_wav_my_0.2deg_PT3H-i
+        direction_variable: VMDR
+        
+        height_dataset_id: cmems_mod_glo_wav_my_0.2deg_PT3H-i
+        height_variable: VHM0
+        
+        stokes_x_dataset_id: cmems_mod_glo_wav_my_0.2deg_PT3H-i
+        stokes_x_variable: VSDX
+
+        stokes_y_dataset_id: cmems_mod_glo_wav_my_0.2deg_PT3H-i
+        stokes_y_variable: VSDY
+
+        partition_names: [year]
+    
+    soil:
+        # Regex for extracting info from file names of the downloaded soil data
+        regex: $(.*)_(%d+-%d+cm)_([a-z]+).* 
+        # Resolution that the raw soil data should be in decimal degrees (~250m
+        # at the Equator)
+        arc_resolution: 0.002249820014374552
+        resolution: 250
+        order:
+            layer_name: 
+                - bulk density
+                - sand
+                - silt
+                - clay
+                - coarse fragments
+            depth:
+                - 0-5cm
+                - 5-15cm
+                - 15-30cm
+            sublayer: mean
+
+dataConfig:
+    date: 2025-03-19
+    azureRoot: ./
+    aoi: aoi.shp
+    directories:
+        - Bronze:
+            - raster:
+                - sentinel-2
+                - landsat
+            - hdf:
+                - icesat-2
+            - vector:
+                - example.gpkg  # This should be confirmed
+        - Silver:
+            - raster:
+                - sentinel-2
+                - landsat
+            - parquet:
+                - example.parquet
+            - geoparquet:
+                - example.parquet
+        - Gold:
+            - raster:
+                - example.tif  # Do sentinel or landsat go in here?
+            - vector:
+                - example.gpkg  # What goes here?
+        - Platinum:
+            - raster:
+                - example.tif  # Do sentinel or landsat go in here?
+            - vector:
+                - example.gpkg  # What goes here?
+
+            
