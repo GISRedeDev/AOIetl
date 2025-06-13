@@ -1,6 +1,7 @@
 import pytest
+import geopandas as gpd
 
-from aoietl.build_paths import build_config, list_rasters_for_date
+from aoietl.build_paths import build_config, list_rasters_for_date, build_tile_index
 import aoietl.data_types as dt
 
 
@@ -54,3 +55,21 @@ def test_list_rasters_for_date(test_config, azure_blob, dataset_name):
     else:
         assert "LC08_L2SP_120034_20250401_02_T1_tile00.tif" in [r.name for r in rasters]
         assert "LC08_L2SP_120034_20250402_02_T1_tile12.tif" not in [r.name for r in rasters]
+
+
+def test_build_tile_index(test_config, azure_blob):
+    config = build_config(test_config)
+    root = azure_blob.joinpath(config.azureRoot)
+    rasters = list_rasters_for_date(
+        root_path=root,
+        tier=dt.DirectoryType.BRONZE.value,
+        dataset_name=dt.RasterType.SENTINEL2.value,
+        config_date=config.date
+    )
+    tile_index = build_tile_index(rasters)
+    assert isinstance(tile_index, gpd.GeoDataFrame)
+    assert not tile_index.empty
+    assert all(tile_index.geometry.type == 'Polygon')
+    assert len(tile_index) == len(rasters)
+    tile_index_paths = tile_index['path'].tolist()
+    assert sorted(tile_index_paths) == sorted([str(r) for r in rasters])
