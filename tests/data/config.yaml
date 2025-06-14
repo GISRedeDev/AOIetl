@@ -170,7 +170,12 @@ dataConfig:
       hdf:
         - icesat-2
       vector:
-        - points.gpkg
+        - name: points.gpkg
+          layer: None
+        - name: random_points.gpkg  # These are just for testing purpose
+          layer: None
+        - name: aoi.gpkg  # These are just for testing purposes
+          layer: None
     silver:
       raster:
         - sentinel-2
@@ -184,12 +189,12 @@ dataConfig:
         - sentinel-2
         - landsat
       vector:
-        - points.gpkg
+        - name: points.gpkg
+          layer: None
     platinum:
       raster:
         - sentinel-2
         - landsat
       vector:
-        - points.gpkg
-
-            
+        - name: points.gpkg
+          layer: None

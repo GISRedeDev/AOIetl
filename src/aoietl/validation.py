@@ -3,7 +3,7 @@ from .data_types import (
     DataConfig,
     RasterType,
     HDFType,
-    VectorType,
+    VectorFileName,
     ParquetType,
 )
 
@@ -27,9 +27,7 @@ def validate_directories(data_config: DataConfig):
 
         if content.vector:
             for v in content.vector:
-                try:
-                    VectorType(v)
-                except ValueError:
+                if not isinstance(v, VectorFileName) or not v.name:
                     raise ValueError(f"Invalid vector type '{v}' in tier '{tier.value}'")
 
         if content.parquet:
