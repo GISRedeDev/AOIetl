@@ -1,7 +1,8 @@
 import pytest
 import geopandas as gpd
 
-from aoietl.build_paths import build_config, list_rasters_for_date, build_tile_index
+
+from aoietl.build_paths import build_config, list_rasters_for_date, build_tile_index, read_vector_subset
 import aoietl.data_types as dt
 
 
@@ -91,3 +92,18 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
     assert not filtered_tiles.empty
     assert all(filtered_tiles.geometry.type == 'Polygon')
     assert len(filtered_tiles) <= len(tile_index)
+
+
+def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg):
+    config = build_config(test_config)
+    root = azure_blob.joinpath(config.azureRoot)
+    random_points = gpd.read_file(root.joinpath(point_gpkg))
+    points_subset = read_vector_subset(
+        vector_path=root.joinpath(
+            dt.DirectoryType.BRONZE.value, "vector", "random_points.gpkg"
+            ),        
+        aoi_gdf=aoi_gdf
+    )
+    assert isinstance(points_subset, gpd.GeoDataFrame)
+    assert len(points_subset) < len(random_points)
+    assert len(random_points[random_points.intersects(aoi_gdf.unary_union)]) == len(points_subset)

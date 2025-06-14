@@ -74,3 +74,7 @@ dataConfig:
 @pytest.fixture
 def aoi_gdf():
     return gpd.read_file(BASE_DATA.joinpath("aoi", "aoi_test.gpkg"))
+
+@pytest.fixture
+def point_gpkg():
+    return "bronze/vector/random_points.gpkg"
