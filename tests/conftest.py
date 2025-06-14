@@ -1,6 +1,8 @@
 import pytest
 from pathlib import Path
 
+import geopandas as gpd
+
 
 BASE_DATA = Path(__file__).parent.resolve().joinpath("data")
 CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
@@ -68,3 +70,7 @@ dataConfig:
 """
     )
     return yaml_path
+
+@pytest.fixture
+def aoi_gdf():
+    return gpd.read_file(BASE_DATA.joinpath("aoi", "aoi_test.gpkg"))

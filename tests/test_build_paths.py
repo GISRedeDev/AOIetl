@@ -73,3 +73,21 @@ def test_build_tile_index(test_config, azure_blob):
     assert len(tile_index) == len(rasters)
     tile_index_paths = tile_index['path'].tolist()
     assert sorted(tile_index_paths) == sorted([str(r) for r in rasters])
+
+
+def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
+    config = build_config(test_config)
+    root = azure_blob.joinpath(config.azureRoot)
+    rasters = list_rasters_for_date(
+        root_path=root,
+        tier=dt.DirectoryType.BRONZE.value,
+        dataset_name=dt.RasterType.SENTINEL2.value,
+        config_date=config.date
+    )
+    tile_index = build_tile_index(rasters)
+    
+    filtered_tiles = tile_index[tile_index.intersects(aoi_gdf.unary_union)]
+    
+    assert not filtered_tiles.empty
+    assert all(filtered_tiles.geometry.type == 'Polygon')
+    assert len(filtered_tiles) <= len(tile_index)
