@@ -162,6 +162,7 @@ dataConfig:
   date: 2025-04-01
   azureRoot: ./
   aoi: aoi/aoi_test.gpkg
+  output_base: output  # Relative to azureRoot - This needs to be thought about
   directories:
     bronze:
       raster:

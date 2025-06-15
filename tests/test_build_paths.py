@@ -14,6 +14,7 @@ def test_build_config(test_config):
     assert dt.DirectoryType.GOLD in config.directories
     assert config.aoi is not None
     assert config.azureRoot is not None
+    assert config.output_base is not None
 
 
 def test_build_config_with_wrong_date(config_wrong_date):
@@ -87,7 +88,7 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
     )
     tile_index = build_tile_index(rasters)
     
-    filtered_tiles = tile_index[tile_index.intersects(aoi_gdf.unary_union)]
+    filtered_tiles = tile_index[tile_index.intersects(aoi_gdf.union_all())]
     
     assert not filtered_tiles.empty
     assert all(filtered_tiles.geometry.type == 'Polygon')
@@ -95,7 +96,6 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
 
 
 def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg):
-    config = build_config(test_config)
     root = azure_blob.joinpath(config.azureRoot)
     random_points = gpd.read_file(root.joinpath(point_gpkg))
     points_subset = read_vector_subset(
@@ -106,4 +106,4 @@ def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg):
     )
     assert isinstance(points_subset, gpd.GeoDataFrame)
     assert len(points_subset) < len(random_points)
-    assert len(random_points[random_points.intersects(aoi_gdf.unary_union)]) == len(points_subset)
+    assert len(random_points[random_points.intersects(aoi_gdf.union_all())]) == len(points_subset)

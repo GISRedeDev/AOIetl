@@ -1,6 +1,8 @@
 from pathlib import Path
 import re
 import yaml
+import warnings
+warnings.filterwarnings("ignore")
 import geopandas as gpd
 import rasterio
 from shapely.geometry import box
@@ -73,13 +75,13 @@ def build_tile_index(raster_paths: list[Path]) -> gpd.GeoDataFrame:
 
 # === 3. Filter tiles by AOI ===
 
-def filter_tiles_by_aoi(tile_index_gdf: gpd.GeoDataFrame, aoi_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def filter_tiles_by_aoi(tile_index_gdf: gpd.GeoDataFrame, aoi_gdf: gpd.GeoDataFrame) -> list[str] | None:
     """
     Return tile index rows that intersect the AOI.
     """
-    aoi_geom = aoi_gdf.unary_union
+    aoi_geom = aoi_gdf.union_all()
     filtered_gdf = tile_index_gdf[tile_index_gdf.intersects(aoi_geom)]
-    return filtered_gdf
+    return filtered_gdf['path'].tolist() if not filtered_gdf.empty else None
 
 # === 4. Read vector subset ===
 
@@ -87,7 +89,7 @@ def read_vector_subset(vector_path: Path, aoi_gdf: gpd.GeoDataFrame) -> gpd.GeoD
     """
     Read only vector features intersecting the AOI.
     """
-    aoi_geom = aoi_gdf.unary_union
+    aoi_geom = aoi_gdf.union_all()
 
     # Read only within bbox first (efficient)
     gdf = gpd.read_file(vector_path, bbox=aoi_geom.bounds)

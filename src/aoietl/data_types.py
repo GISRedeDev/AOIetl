@@ -53,4 +53,5 @@ class DataConfig:
     date: datetime.date
     azureRoot: str
     aoi: str
+    output_base: str
     directories: dict[DirectoryType, DirectoryContent]
