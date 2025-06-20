@@ -1,0 +1,26 @@
+[project]
+name = "aoietl"
+packages = [{ include = "aoietl", from = "src" }]
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "geopandas>=1.1.0",
+    "pydantic>=2.11.5",
+    "pytest>=8.4.0",
+    "pyyaml>=6.0.2",
+    "rasterio>=1.4.3",
+    "structlog>=25.4.0",
+]
+
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aoietl"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
