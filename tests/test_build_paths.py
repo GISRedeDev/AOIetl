@@ -96,6 +96,7 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
 
 
 def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg):
+    config = build_config(test_config)
     root = azure_blob.joinpath(config.azureRoot)
     random_points = gpd.read_file(root.joinpath(point_gpkg))
     points_subset = read_vector_subset(
