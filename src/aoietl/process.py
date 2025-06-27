@@ -33,7 +33,7 @@ from .validation import validate_directories
 logger = structlog.get_logger(__name__)
 
 
-def process(config_path: Path, azure_blob: Path, local_dir: Path) -> None:
+def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
     """
     Main processing function to handle the ETL workflow based on the provided configuration.
 
@@ -64,6 +64,16 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path) -> None:
                         logger.info("Copying files to output", output_base=config.output_base)
                         copy_raster_files(filtered_tiles, BASE_OUT_DIR, tier, raster_type)
                 else:
+                    if error_for_missing_files:
+                        logger.error(
+                            "No raster files found for the specified date and type.",
+                            raster_type=raster_type,
+                            date=config.date,
+                            tier=tier
+                        )
+                        raise FileNotFoundError(
+                            f"No raster files found for {raster_type} on {config.date} in tier {tier.value}."
+                        )
                     logger.warning(
                         "No rasters found",
                         raster_type=raster_type,
@@ -75,6 +85,17 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path) -> None:
 def copy_raster_files(files: list[Path | str], output_dir: Path, tier: DirectoryType, raster_type: str) -> None:
     for f in files:
         dest = output_dir.joinpath(tier.value, raster_type, Path(f).name)
+        dest_json = dest.with_suffix('.json')
         if not dest.parent.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(f, dest)
+        try:
+            shutil.copy2(Path(f).with_suffix('.json'), dest_json)
+        except FileNotFoundError:
+            logger.warning(
+                "JSON file not found for raster",
+                raster_file=f,
+                json_file=dest_json,
+                tier=tier.value,
+                raster_type=raster_type
+            )

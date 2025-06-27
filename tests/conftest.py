@@ -77,4 +77,4 @@ def aoi_gdf():
 
 @pytest.fixture
 def point_gpkg():
-    return "bronze/vector/random_points.gpkg"
+    return "bronze/random_test_points/random_points.gpkg"

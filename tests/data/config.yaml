@@ -173,7 +173,7 @@ dataConfig:
       vector:
         - name: points.gpkg
           layer: None
-        - name: random_points.gpkg  # These are just for testing purpose
+        - name: random_test_points/random_points.gpkg  # These are just for testing purpose
           layer: None
         - name: aoi.gpkg  # These are just for testing purposes
           layer: None
