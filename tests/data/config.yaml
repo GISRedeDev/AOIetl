@@ -175,6 +175,7 @@ dataConfig:
           layer: None
         - name: random_test_points/random_points.gpkg  # These are just for testing purpose
           layer: None
+        - name: random_test_points/random_points.parquet  # These are just for testing purpose
         - name: aoi.gpkg  # These are just for testing purposes
           layer: None
     silver:
@@ -182,9 +183,7 @@ dataConfig:
         - sentinel-2
         - landsat
       parquet:
-        - bathymetry_reference.parquet
-      geoparquet:
-        - points.parquet
+        - name: bathymetry_reference.parquet
     gold:
       raster:
         - sentinel-2

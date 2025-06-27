@@ -4,7 +4,7 @@ from .data_types import (
     RasterType,
     HDFType,
     VectorFileName,
-    ParquetType,
+    ParquetFileName,
 )
 
 
@@ -32,15 +32,6 @@ def validate_directories(data_config: DataConfig):
 
         if content.parquet:
             for p in content.parquet:
-                try:
-                    ParquetType(p)
-                except ValueError:
+                if not isinstance(p, ParquetFileName) or not p.name:
                     raise ValueError(f"Invalid parquet type '{p}' in tier '{tier.value}'")
-
-        if content.geoparquet:
-            for gp in content.geoparquet:
-                try:
-                    ParquetType(gp)  # Reuse ParquetType Enum
-                except ValueError:
-                    raise ValueError(f"Invalid geoparquet type '{gp}' in tier '{tier.value}'")
     return True

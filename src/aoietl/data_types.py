@@ -14,22 +14,54 @@ class HDFType(str, Enum):
     ICESAT2 = "icesat-2"
     # TODO add more HDF types as needed
 
+
+class VectorType(str, Enum):
+    PARQUET = "parquet"
+    GEOPACKAGE = "gpkg"
+
 @dataclass
 class VectorFileName:
     name: str
     layer: Optional[str] = None
+    sql_query: Optional[str] = None
 
-class VectorType(str, Enum):
-    # TODO Should this just be a list of strings to open in the root of the tier? See above dataclass
-    EXAMPLE_GPKG = "points.gpkg"
-    # GPGKG = "gpkg"
-    # SHAPEFILE = "shapefile"
-    # TODO Will gpkgs be in folders or root? Layer names? Will there be shps?
+    def __post_init__(self):
+        if not (self.name.endswith('.gpkg') or self.name.endswith('.parquet')):
+            raise ValueError(
+                f"VectorFileName.name must end with '.gpkg' or '.parquet', got: {self.name}"
+            )
+        elif self.sql_query and self.name.endswith('.gpkg'):
+            raise ValueError(
+                f"Geopackage files cannot have a SQL query, got: {self.name}"
+            )
+        elif self.layer and self.sql_query:
+            raise ValueError(
+                f"VectorFileName cannot have both layer and sql_query, got: {self.name}"
+            )
 
-class ParquetType(str, Enum):
-    EXAMPLE_PARQUET = "points.parquet"
-    BATHYMETRY_REFERENCE = "bathymetry_reference.parquet"
-    # TODO Will parquet be in folders or root?
+    @property
+    def type(self) -> VectorType:
+        if self.name.endswith('.gpkg'):
+            return VectorType.GEOPACKAGE
+        elif self.name.endswith('.parquet'):
+            return VectorType.PARQUET
+        else:
+            raise ValueError(f"Unknown vector file type for: {self.name}. Choose either .gpkg or .parquet.")
+
+@dataclass
+class TabularFilename:
+    # This is a generic name for tabular data files, such as CSV or feather files. Copy only
+    name: str
+
+@dataclass
+class ParquetFileName:
+    name: str
+    sql_query: Optional[str] = None
+    # TODO Should this be list of tuples or raw sql to open with duckdb?
+
+@dataclass
+class ReferenceFileName:
+    name: str
 
 class DirectoryType(str, Enum):
     BRONZE = "bronze"
@@ -44,8 +76,8 @@ class DirectoryContent:
     raster: Optional[List[str]] = Field(default=None)
     hdf: Optional[List[str]] = Field(default=None)
     vector: Optional[List[VectorFileName]] = Field(default=None)
-    parquet: Optional[List[str]] = Field(default=None)
-    geoparquet: Optional[List[str]] = Field(default=None)
+    parquet: Optional[List[ParquetFileName]] = Field(default=None)
+    table: Optional[List[TabularFilename]] = Field(default=None)
 
 
 @dataclass
