@@ -91,9 +91,11 @@ def read_vector_subset(vector_path: Path, aoi_gdf: gpd.GeoDataFrame) -> gpd.GeoD
     """
     aoi_geom = aoi_gdf.union_all()
 
-    # Read only within bbox first (efficient)
-    gdf = gpd.read_file(vector_path, bbox=aoi_geom.bounds)
-
-    # Filter precisely by AOI
+    if vector_path.suffix == '.gpkg':
+        gdf = gpd.read_file(vector_path, bbox=aoi_geom.bounds)
+    elif vector_path.suffix == '.parquet':
+        gdf = gpd.read_parquet(vector_path, bbox=aoi_geom.bounds)
+    else:
+        raise ValueError(f"Unsupported vector file type: {vector_path.suffix}. Only .gpkg and .parquet are supported.")
     gdf = gdf[gdf.intersects(aoi_geom)]
     return gdf

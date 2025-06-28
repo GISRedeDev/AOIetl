@@ -94,14 +94,17 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
     assert all(filtered_tiles.geometry.type == 'Polygon')
     assert len(filtered_tiles) <= len(tile_index)
 
-
-def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg):
+@pytest.mark.parametrize("vector_path", [
+    "random_test_points/random_points.gpkg",
+    "random_test_points/random_points.parquet"
+])
+def test_read_vector_subset(test_config, azure_blob, aoi_gdf, point_gpkg, vector_path):
     config = build_config(test_config)
     root = azure_blob.joinpath(config.azureRoot)
     random_points = gpd.read_file(root.joinpath(point_gpkg))
     points_subset = read_vector_subset(
         vector_path=root.joinpath(
-            dt.DirectoryType.BRONZE.value, "random_test_points", "random_points.gpkg"
+            dt.DirectoryType.BRONZE.value, vector_path
             ),        
         aoi_gdf=aoi_gdf
     )
