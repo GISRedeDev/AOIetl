@@ -3,6 +3,7 @@ import re
 import yaml
 import warnings
 warnings.filterwarnings("ignore")
+import fsspec
 import geopandas as gpd
 import rasterio
 from shapely.geometry import box
@@ -58,19 +59,29 @@ def list_rasters_for_date(root_path: Path, tier: str, dataset_name: str, config_
     return matching_files
 
 
-def build_tile_index(raster_paths: list[Path]) -> gpd.GeoDataFrame:
+def build_tile_index(raster_paths: list[Path], fs: fsspec.AbstractFileSystem) -> gpd.GeoDataFrame:
     """
     Build a GeoDataFrame with bounds polygons for each raster path.
     """
     records = []
-
+    raster_crs: str | None = None
     for path in raster_paths:
-        with rasterio.open(path) as src:
-            bounds = src.bounds
-            geom = box(bounds.left, bounds.bottom, bounds.right, bounds.top)
-            records.append({"geometry": geom, "path": str(path)})
+        with fs.open(path) as f:
+            with rasterio.open(f) as src:
+                if not raster_crs:
+                    raster_crs = src.crs
+                bounds = src.bounds
+                geom = box(bounds.left, bounds.bottom, bounds.right, bounds.top)
+                records.append({"geometry": geom, "path": str(path)})
 
-    gdf = gpd.GeoDataFrame(records, crs="EPSG:4326")  # Assuming rasters already in 4326
+    gdf = gpd.GeoDataFrame(records, crs=raster_crs)  # Assuming rasters already in 4326
+    if raster_crs != "EPSG:4326":
+        # Reproject to WGS84 if not already in that CRS
+        try:
+            gdf = gdf.to_crs("EPSG:4326")
+        except Exception as e:
+            raise ValueError(f"Failed to reproject tile index to EPSG:4326: {e}")
+    gdf = gdf.to_crs(4326)
     return gdf
 
 # === 3. Filter tiles by AOI ===

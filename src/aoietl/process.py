@@ -18,6 +18,7 @@ import shutil
 import warnings
 warnings.filterwarnings("ignore")
 import geopandas as gpd
+from upath import UPath
 
 from .build_paths import (
     build_config,
@@ -49,15 +50,16 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
     BASE_OUT_DIR = local_dir.joinpath(config.output_base)
     aoi_gdf = gpd.read_file(BASE_DIR.joinpath(config.aoi))
     for tier, directory_content in config.directories.items():
-        logger.info("Processing tier", tier=tier)        
+        logger.info("Processing tier", tier=tier)
+        BASE_AZURE_DIR = getattr(config.tier_roots, tier.value, None)      
         if directory_content.raster:
-            process_rasters(directory_content, tier, aoi_gdf, BASE_DIR, BASE_OUT_DIR, config)
+            process_rasters(directory_content, tier, aoi_gdf, BASE_AZURE_DIR, BASE_OUT_DIR, config)
         if directory_content.vector:
             process_vectors(
                 directory_content,
                 tier,
                 aoi_gdf,
-                BASE_DIR,
+                BASE_AZURE_DIR,
                 BASE_OUT_DIR,
                 error_for_missing_files
             )
@@ -121,8 +123,8 @@ def process_rasters(
         directory_content: DirectoryContent,
         tier: DirectoryType,
         aoi_gdf: gpd.GeoDataFrame,
-        BASE_DIR: Path,
-        BASE_OUT_DIR: Path,
+        BASE_DIR: UPath | Path,
+        BASE_OUT_DIR: UPath | Path,
         config: DataConfig,
         error_for_missing_files: bool = False
 ) -> None:
@@ -133,8 +135,8 @@ def process_rasters(
         directory_content (DirectoryContent): Content of the directory for the current tier.
         tier (DirectoryType): The current processing tier.
         aoi_gdf (gpd.GeoDataFrame): Area of Interest as a GeoDataFrame.
-        BASE_DIR (Path): Base directory where raster files are located.
-        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
+        BASE_DIR (UPath | Path): Base directory where raster files are located.
+        BASE_OUT_DIR (UPath | Path): Base output directory where processed files will be saved.
         config (DataConfig): Configuration object containing processing parameters.
         error_for_missing_files (bool): If True, raise an error if raster files are missing
     """
@@ -146,7 +148,7 @@ def process_rasters(
             config_date=config.date
         )
         if rasters:
-            tile_index = build_tile_index(rasters)
+            tile_index = build_tile_index(rasters, config.fs)
             filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf)
             if filtered_tiles:
                 logger.info("Copying files to output", output_base=config.output_base)
@@ -169,16 +171,18 @@ def process_rasters(
                 tier=tier
             )
 
-def copy_raster_files(files: list[Path | str], output_dir: Path, tier: DirectoryType, raster_type: str) -> None:
+def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: DirectoryType, raster_type: str) -> None:
     for f in files:
         dest = output_dir.joinpath(tier.value, raster_type, Path(f).name)
         if not dest.parent.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(f, dest)
+        with f.open('rb') as src, open(dest, 'wb') as dest:
+            shutil.copyfileobj(src, dest)
         if raster_type == "landsat":
             dest_json = dest.with_suffix('.json')
             try:
-                shutil.copy2(Path(f).with_suffix('.json'), dest_json)
+                with f.with_suffix(".json").open('rb') as src_json, open(dest_json, 'wb') as dest_json:
+                    shutil.copyfileobj(src_json, dest_json)
             except FileNotFoundError:
                 logger.warning(
                     "JSON file not found for raster",
