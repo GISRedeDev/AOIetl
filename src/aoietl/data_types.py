@@ -1,9 +1,11 @@
 from enum import Enum
 from pydantic.dataclasses import dataclass
 from typing import Optional, List
-from pydantic import Field
+from pydantic import Field, ConfigDict
 import datetime
-
+from upath import UPath
+import os
+import fsspec
 
 class RasterType(str, Enum):
     SENTINEL2 = "sentinel-2"
@@ -68,8 +70,17 @@ class DirectoryType(str, Enum):
     SILVER = "silver"
     GOLD = "gold"
     PLATINUM = "platinum"
+    REFERENCE = "reference"
 
 # === DirectoryContent ===
+
+@dataclass(config=ConfigDict(arbitrary_types_allowed=True))
+class TierRoots:
+    bronze: UPath | None = None
+    silver: UPath | None = None
+    gold: UPath | None = None
+    platinum: UPath | None = None
+    reference: UPath | None = None
 
 @dataclass
 class DirectoryContent:
@@ -80,10 +91,49 @@ class DirectoryContent:
     table: Optional[List[TabularFilename]] = Field(default=None)
 
 
-@dataclass
+@dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class DataConfig:
+
     date: datetime.date
     azureRoot: str
     aoi: str
     output_base: str
     directories: dict[DirectoryType, DirectoryContent]
+    
+    @property
+    def fs(self) -> fsspec.AbstractFileSystem:
+        """Get the Azure filesystem object."""
+        azure_account_name = os.getenv("AZURE_ACCOUNT_NAME")
+        azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")
+        return fsspec.filesystem(
+            "az",
+            account_name=azure_account_name,
+            account_key=azure_account_key
+        )
+
+    @property
+    def tier_roots(self) -> TierRoots:
+        return setup_azure_filesystem(self)
+
+
+def setup_azure_filesystem(config: DataConfig) -> TierRoots:
+    """
+    Setup Azure filesystem and return filesystem object and base path.
+    """
+    azure_account_name = os.getenv("AZURE_ACCOUNT_NAME")
+    azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")
+    if azure_account_name and azure_account_key:
+        tier_roots = TierRoots()
+        for directory_type in DirectoryType:
+            base_path = UPath(
+                f"az://{directory_type.value}",
+                protocol="az",
+                account_name=azure_account_name,
+                account_key=azure_account_key
+            )
+            setattr(tier_roots, directory_type.value, base_path)
+        return tier_roots
+    else:
+        raise ValueError(
+            "Azure account name and key must be set in environment variables AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY."
+        )
