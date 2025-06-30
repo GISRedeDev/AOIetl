@@ -45,7 +45,6 @@ def test_list_rasters_for_date(test_config, azure_blob, dataset_name):
     root = azure_blob.joinpath(config.azureRoot)
     rasters = list_rasters_for_date(
         root_path=root,
-        tier=dt.DirectoryType.BRONZE.value,
         dataset_name=dataset_name,
         config_date=config.date
     )
@@ -64,7 +63,6 @@ def test_build_tile_index(test_config, azure_blob):
     root = azure_blob.joinpath(config.azureRoot)
     rasters = list_rasters_for_date(
         root_path=root,
-        tier=dt.DirectoryType.BRONZE.value,
         dataset_name=dt.RasterType.SENTINEL2.value,
         config_date=config.date
     )
@@ -82,7 +80,6 @@ def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
     root = azure_blob.joinpath(config.azureRoot)
     rasters = list_rasters_for_date(
         root_path=root,
-        tier=dt.DirectoryType.BRONZE.value,
         dataset_name=dt.RasterType.SENTINEL2.value,
         config_date=config.date
     )

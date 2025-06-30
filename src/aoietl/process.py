@@ -143,7 +143,6 @@ def process_rasters(
     for raster_type in directory_content.raster:
         rasters = list_rasters_for_date(
             root_path=BASE_DIR,
-            tier=tier.value,
             dataset_name=raster_type,
             config_date=config.date
         )

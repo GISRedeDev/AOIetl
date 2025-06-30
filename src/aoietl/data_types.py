@@ -8,7 +8,7 @@ import os
 import fsspec
 
 class RasterType(str, Enum):
-    SENTINEL2 = "sentinel-2"
+    SENTINEL2 = "sentinel2"
     LANDSAT8 = "landsat"
     # TODO add more raster types as needed
 

@@ -32,9 +32,8 @@ def build_config(config_yaml_path: str | Path) -> DataConfig:
     raise ValueError("Invalid config format (no `dataConfig` element in yaml). Please check the yaml structure.")
 
 
-def list_rasters_for_date(root_path: Path, tier: str, dataset_name: str, config_date) -> list[Path]:
-    search_path = Path(root_path) / tier / dataset_name
-    raster_files = list(search_path.glob("*.tif"))
+def list_rasters_for_date(root_path: Path, dataset_name: str, config_date) -> list[Path]:
+    raster_files = [x for x in root_path.joinpath(dataset_name).iterdir() if x.is_file() and x.suffix == '.tif']
 
     matching_files = []
     target_date_str = config_date.strftime("%Y%m%d")

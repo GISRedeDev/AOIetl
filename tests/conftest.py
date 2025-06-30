@@ -1,4 +1,6 @@
 import pytest
+import os
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 import geopandas as gpd
@@ -10,6 +12,21 @@ CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
 @pytest.fixture(scope="session")
 def test_config():
     return CONFIG_YAML
+
+@pytest.fixture(scope="session")
+def mock_azure_env():
+    """Mock Azure environment variables"""
+    with patch.dict(os.environ, {
+        'AZURE_ACCOUNT_NAME': 'test_account',
+        'AZURE_ACCOUNT_KEY': 'test_key'
+    }):
+        yield
+
+@pytest.fixture
+def mock_azure_env_unset():
+    """Unset Azure environment variables"""
+    with patch.dict(os.environ, {}, clear=True):
+        yield
 
 
 @pytest.fixture
