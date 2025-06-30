@@ -40,9 +40,9 @@ def test_build_config_missing_directories(config_missing_directories):
     dt.RasterType.SENTINEL2.value,
     dt.RasterType.LANDSAT8.value
 ])
-def test_list_rasters_for_date(test_config, azure_blob, dataset_name):
+def test_list_rasters_for_date(test_config, azure_blob, dataset_name, mock_setup_azure_filesystem):
     config = build_config(test_config)
-    root = azure_blob.joinpath(config.azureRoot)
+    root = config.tier_roots.bronze
     rasters = list_rasters_for_date(
         root_path=root,
         dataset_name=dataset_name,
@@ -58,9 +58,9 @@ def test_list_rasters_for_date(test_config, azure_blob, dataset_name):
         assert "LC08_L2SP_120034_20250402_02_T1_tile12.tif" not in [r.name for r in rasters]
 
 
-def test_build_tile_index(test_config, azure_blob):
+def test_build_tile_index(test_config, azure_blob, mock_setup_azure_filesystem):
     config = build_config(test_config)
-    root = azure_blob.joinpath(config.azureRoot)
+    root = config.tier_roots.bronze
     rasters = list_rasters_for_date(
         root_path=root,
         dataset_name=dt.RasterType.SENTINEL2.value,
@@ -75,9 +75,9 @@ def test_build_tile_index(test_config, azure_blob):
     assert sorted(tile_index_paths) == sorted([str(r) for r in rasters])
 
 
-def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf):
+def test_filter_tiles_by_aoi(test_config, azure_blob, aoi_gdf, mock_setup_azure_filesystem):
     config = build_config(test_config)
-    root = azure_blob.joinpath(config.azureRoot)
+    root = config.tier_roots.bronze
     rasters = list_rasters_for_date(
         root_path=root,
         dataset_name=dt.RasterType.SENTINEL2.value,

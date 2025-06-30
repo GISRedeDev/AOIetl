@@ -6,7 +6,8 @@ warnings.filterwarnings("ignore")
 import fsspec
 import geopandas as gpd
 import rasterio
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
+
 
 from .data_types import DataConfig
 
@@ -57,21 +58,39 @@ def list_rasters_for_date(root_path: Path, dataset_name: str, config_date) -> li
 
     return matching_files
 
+def make_tile_bounds_geom(src: rasterio.io.DatasetReader) -> Polygon:
+    """
+    Create a bounds polygon from a rasterio dataset.
+    
+    Args:
+        src (rasterio.io.DatasetReader): The rasterio dataset reader object.
+    
+    Returns:
+        shapely.geometry.Polygon: The bounds polygon of the raster.
+    """
+    bounds = src.bounds
+    return box(bounds.left, bounds.bottom, bounds.right, bounds.top)
 
-def build_tile_index(raster_paths: list[Path], fs: fsspec.AbstractFileSystem) -> gpd.GeoDataFrame:
+
+def build_tile_index(raster_paths: list[Path], fs: fsspec.AbstractFileSystem | None = None) -> gpd.GeoDataFrame:
     """
     Build a GeoDataFrame with bounds polygons for each raster path.
     """
     records = []
     raster_crs: str | None = None
     for path in raster_paths:
-        with fs.open(path) as f:
-            with rasterio.open(f) as src:
+        # TODO Put these to conditions into a function
+        if fs:
+            with fs.open(path) as f:
+                with rasterio.open(f) as src:
+                    if not raster_crs:
+                        raster_crs = src.crs
+                    records.append({"geometry": make_tile_bounds_geom(src), "path": str(path)})
+        else:
+            with rasterio.open(path) as src:
                 if not raster_crs:
                     raster_crs = src.crs
-                bounds = src.bounds
-                geom = box(bounds.left, bounds.bottom, bounds.right, bounds.top)
-                records.append({"geometry": geom, "path": str(path)})
+                records.append({"geometry": make_tile_bounds_geom(src), "path": str(path)})
 
     gdf = gpd.GeoDataFrame(records, crs=raster_crs)  # Assuming rasters already in 4326
     if raster_crs != "EPSG:4326":

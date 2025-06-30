@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 import geopandas as gpd
-
+from aoietl.data_types import DataConfig, TierRoots, DirectoryType
 
 BASE_DATA = Path(__file__).parent.resolve().joinpath("data")
 CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
@@ -12,6 +12,24 @@ CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
 @pytest.fixture(scope="session")
 def test_config():
     return CONFIG_YAML
+
+@pytest.fixture
+def mock_setup_azure_filesystem():
+    """Mock setup_azure_filesystem to return local paths instead of Azure paths"""
+    
+    def mock_setup(config: DataConfig) -> TierRoots:
+        """
+        Mock version that returns local paths pointing to tests/data/{tier}/
+        """
+        tier_roots = TierRoots()
+        for directory_type in DirectoryType:
+            # Point to local test data directory
+            base_path = BASE_DATA.joinpath(directory_type.value)
+            setattr(tier_roots, directory_type.value, base_path)
+        return tier_roots
+    
+    with patch('aoietl.data_types.setup_azure_filesystem', side_effect=mock_setup):
+        yield mock_setup
 
 @pytest.fixture(scope="session")
 def mock_azure_env():

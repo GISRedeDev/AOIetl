@@ -141,11 +141,22 @@ def process_rasters(
         error_for_missing_files (bool): If True, raise an error if raster files are missing
     """
     for raster_type in directory_content.raster:
-        rasters = list_rasters_for_date(
-            root_path=BASE_DIR,
-            dataset_name=raster_type,
-            config_date=config.date
-        )
+        try:
+            rasters = list_rasters_for_date(
+                root_path=BASE_DIR,
+                dataset_name=raster_type,
+                config_date=config.date
+            )
+        except FileNotFoundError as e:
+            logger.error(
+                "Error listing rasters for date",
+                raster_type=raster_type,
+                date=config.date,
+                tier=tier.value,
+                error=str(e)
+            )
+            if error_for_missing_files:
+                raise e
         if rasters:
             tile_index = build_tile_index(rasters, config.fs)
             filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf)

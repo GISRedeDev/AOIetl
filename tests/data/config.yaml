@@ -160,13 +160,15 @@ processing:
 
 dataConfig:
   date: 2025-04-01
+  #date: 2020-04-05
+  #date: 2020-09-25
   azureRoot: ./
   aoi: aoi/aoi_test.gpkg
   output_base: output  # Relative to azureRoot - This needs to be thought about
   directories:
     bronze:
       raster:
-        - sentinel-2
+        - sentinel2
         - landsat
       hdf:
         - icesat-2
@@ -180,20 +182,20 @@ dataConfig:
           layer: None
     silver:
       raster:
-        - sentinel-2
+        - sentinel2
         - landsat
       parquet:
         - name: bathymetry_reference.parquet
     gold:
       raster:
-        - sentinel-2
+        - sentinel2
         - landsat
       vector:
         - name: points.gpkg
           layer: None
     platinum:
       raster:
-        - sentinel-2
+        - sentinel2
         - landsat
       vector:
         - name: points.gpkg
