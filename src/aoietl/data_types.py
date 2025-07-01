@@ -119,6 +119,7 @@ class DataConfig:
 def setup_azure_filesystem(config: DataConfig) -> TierRoots:
     """
     Setup Azure filesystem and return filesystem object and base path.
+
     """
     azure_account_name = os.getenv("AZURE_ACCOUNT_NAME")
     azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")

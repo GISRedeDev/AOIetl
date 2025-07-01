@@ -51,15 +51,16 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
     aoi_gdf = gpd.read_file(BASE_DIR.joinpath(config.aoi))
     for tier, directory_content in config.directories.items():
         logger.info("Processing tier", tier=tier)
-        BASE_AZURE_DIR = getattr(config.tier_roots, tier.value, None)      
+        #BASE_AZURE_DIR = getattr(config.tier_roots, tier.value, None) 
+        BASE_TIER_DIR = BASE_DIR.joinpath(tier.value)     
         if directory_content.raster:
-            process_rasters(directory_content, tier, aoi_gdf, BASE_AZURE_DIR, BASE_OUT_DIR, config)
+            process_rasters_using_paths(directory_content, tier, aoi_gdf, BASE_TIER_DIR, BASE_OUT_DIR, config)
         if directory_content.vector:
             process_vectors(
                 directory_content,
                 tier,
                 aoi_gdf,
-                BASE_AZURE_DIR,
+                BASE_TIER_DIR,
                 BASE_OUT_DIR,
                 error_for_missing_files
             )
@@ -119,12 +120,12 @@ def process_vectors(
                 tier=tier.value
             )
 
-def process_rasters(
+def process_rasters_using_paths(
         directory_content: DirectoryContent,
         tier: DirectoryType,
         aoi_gdf: gpd.GeoDataFrame,
-        BASE_DIR: UPath | Path,
-        BASE_OUT_DIR: UPath | Path,
+        BASE_DIR: Path,
+        BASE_OUT_DIR: Path,
         config: DataConfig,
         error_for_missing_files: bool = False
 ) -> None:
@@ -140,6 +141,7 @@ def process_rasters(
         config (DataConfig): Configuration object containing processing parameters.
         error_for_missing_files (bool): If True, raise an error if raster files are missing
     """
+    rasters: list[Path | str] = []
     for raster_type in directory_content.raster:
         try:
             rasters = list_rasters_for_date(
@@ -158,7 +160,7 @@ def process_rasters(
             if error_for_missing_files:
                 raise e
         if rasters:
-            tile_index = build_tile_index(rasters, config.fs)
+            tile_index = build_tile_index(rasters)
             filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf)
             if filtered_tiles:
                 logger.info("Copying files to output", output_base=config.output_base)
@@ -189,7 +191,7 @@ def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: D
         with f.open('rb') as src, open(dest, 'wb') as dest:
             shutil.copyfileobj(src, dest)
         if raster_type == "landsat":
-            dest_json = dest.with_suffix('.json')
+            dest_json = f.with_suffix('.json')
             try:
                 with f.with_suffix(".json").open('rb') as src_json, open(dest_json, 'wb') as dest_json:
                     shutil.copyfileobj(src_json, dest_json)
