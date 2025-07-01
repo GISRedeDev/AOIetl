@@ -8,10 +8,15 @@ from aoietl.data_types import DataConfig, TierRoots, DirectoryType
 
 BASE_DATA = Path(__file__).parent.resolve().joinpath("data")
 CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
+CONFIG_YAML_FSSPEC = BASE_DATA.joinpath("config_fsspec.yaml")
 
 @pytest.fixture(scope="session")
 def test_config():
     return CONFIG_YAML
+
+@pytest.fixture(scope="session")
+def test_config_fsspec():
+    return CONFIG_YAML_FSSPEC
 
 @pytest.fixture
 def mock_setup_azure_filesystem():

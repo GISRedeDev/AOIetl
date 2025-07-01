@@ -4,6 +4,7 @@ from typing import Optional, List
 from pydantic import Field, ConfigDict
 import datetime
 from upath import UPath
+from pathlib import Path
 import os
 import fsspec
 
@@ -76,11 +77,11 @@ class DirectoryType(str, Enum):
 
 @dataclass(config=ConfigDict(arbitrary_types_allowed=True))
 class TierRoots:
-    bronze: UPath | None = None
-    silver: UPath | None = None
-    gold: UPath | None = None
-    platinum: UPath | None = None
-    reference: UPath | None = None
+    bronze: Path | UPath | None = None
+    silver: Path | UPath | None = None
+    gold: Path | UPath | None = None
+    platinum: Path | UPath | None = None
+    reference: Path | UPath | None = None
 
 @dataclass
 class DirectoryContent:
@@ -95,14 +96,16 @@ class DirectoryContent:
 class DataConfig:
 
     date: datetime.date
-    azureRoot: str
+    azureRoot: str | None
     aoi: str
     output_base: str
     directories: dict[DirectoryType, DirectoryContent]
     
     @property
-    def fs(self) -> fsspec.AbstractFileSystem:
+    def fs(self) -> fsspec.AbstractFileSystem | None:
         """Get the Azure filesystem object."""
+        if self.azureRoot:
+            return None
         azure_account_name = os.getenv("AZURE_ACCOUNT_NAME")
         azure_account_key = os.getenv("AZURE_ACCOUNT_KEY")
         return fsspec.filesystem(
@@ -126,12 +129,15 @@ def setup_azure_filesystem(config: DataConfig) -> TierRoots:
     if azure_account_name and azure_account_key:
         tier_roots = TierRoots()
         for directory_type in DirectoryType:
-            base_path = UPath(
-                f"az://{directory_type.value}",
-                protocol="az",
-                account_name=azure_account_name,
-                account_key=azure_account_key
-            )
+            if not config.azureRoot:
+                base_path = UPath(
+                    f"az://{directory_type.value}",
+                    protocol="az",
+                    account_name=azure_account_name,
+                    account_key=azure_account_key
+                )
+            else:
+                base_path = Path(config.azureRoot).joinpath(directory_type.value)
             setattr(tier_roots, directory_type.value, base_path)
         return tier_roots
     else:
