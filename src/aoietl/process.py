@@ -26,6 +26,7 @@ from .build_paths import (
     build_tile_index,
     filter_tiles_by_aoi,
     read_vector_subset,
+    copy_vector_data_from_azure,
 )
 
 from .data_types import DataConfig, DirectoryType, DirectoryContent
@@ -62,6 +63,47 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 aoi_gdf,
                 BASE_TIER_DIR,
                 BASE_OUT_DIR,
+                config,
+                error_for_missing_files
+            )
+
+
+def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
+    """
+    Process function for fsspec-based configuration.
+
+    Args:
+        config_path (Path): Path to the YAML configuration file.
+        local_dir (Path): Local directory where output files will be copied.
+        error_for_missing_files (bool): If True, raise an error if files are missing.
+    """
+    config = build_config(config_path)
+    validate_directories(config)
+    #BASE_DIR = config.azureRoot
+    BASE_OUT_DIR = local_dir.joinpath(config.output_base)
+    aoi_gdf = gpd.read_file(local_dir.joinpath(config.aoi))
+    for tier, directory_content in config.directories.items():
+        logger.info("Processing tier", tier=tier)
+        #BASE_TIER_DIR = BASE_DIR.joinpath(tier.value)
+        BASE_TIER_DIR = getattr(config.tier_roots, tier.value, None) 
+        if directory_content.raster:
+            process_rasters_using_paths(
+                directory_content,
+                tier,
+                aoi_gdf,
+                BASE_TIER_DIR,
+                BASE_OUT_DIR,
+                config,
+                error_for_missing_files
+            )
+        if directory_content.vector:
+            process_vectors(
+                directory_content,
+                tier,
+                aoi_gdf,
+                BASE_TIER_DIR,
+                BASE_OUT_DIR,
+                config,
                 error_for_missing_files
             )
 
@@ -69,8 +111,9 @@ def process_vectors(
         directory_content: DirectoryContent,
         tier: DirectoryType,
         aoi_gdf: gpd.GeoDataFrame,
-        BASE_DIR: Path,
+        BASE_DIR: Path | UPath,
         BASE_OUT_DIR: Path,
+        config: DataConfig,
         error_for_missing_files: bool = False
 ) -> None:
     """
@@ -86,13 +129,16 @@ def process_vectors(
         error_for_missing_files (bool): If True, raise an error if vector files are missing.
     """
     for vector_file in directory_content.vector:
-        vector_path = BASE_DIR.joinpath(tier.value, vector_file.name)
+        vector_path = BASE_DIR.joinpath(vector_file.name)
         if vector_path.exists():
             logger.info("Reading vector file", vector_file=vector_file.name, tier=tier.value)
-            gdf = read_vector_subset(
-                vector_path=vector_path,
-                aoi_gdf=aoi_gdf
-            )
+            if config.azureRoot:
+                gdf = read_vector_subset(
+                    vector_path=vector_path,
+                    aoi_gdf=aoi_gdf
+                )
+            else:
+                gdf = copy_vector_data_from_azure(vector_path, aoi_gdf, config)
             if gdf.empty:
                 logger.warning(
                     "Vector file is empty after AOI filtering",
@@ -161,10 +207,10 @@ def process_rasters_using_paths(
                 raise e
         if rasters:
             tile_index = build_tile_index(rasters)
-            filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf)
+            filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf, config)
             if filtered_tiles:
                 logger.info("Copying files to output", output_base=config.output_base)
-                copy_raster_files(filtered_tiles, BASE_OUT_DIR, tier, raster_type)
+                copy_raster_files(filtered_tiles, BASE_OUT_DIR, tier, raster_type, config)
         else:
             if error_for_missing_files:
                 logger.error(
@@ -183,23 +229,41 @@ def process_rasters_using_paths(
                 tier=tier
             )
 
-def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: DirectoryType, raster_type: str) -> None:
+def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: DirectoryType, raster_type: str, config: DataConfig) -> None:
     for f in files:
         dest = output_dir.joinpath(tier.value, raster_type, Path(f).name)
         if not dest.parent.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
-        with f.open('rb') as src, open(dest, 'wb') as dest:
-            shutil.copyfileobj(src, dest)
-        if raster_type == "landsat":
-            dest_json = f.with_suffix('.json')
-            try:
-                with f.with_suffix(".json").open('rb') as src_json, open(dest_json, 'wb') as dest_json:
-                    shutil.copyfileobj(src_json, dest_json)
-            except FileNotFoundError:
-                logger.warning(
-                    "JSON file not found for raster",
-                    raster_file=f,
-                    json_file=dest_json,
-                    tier=tier.value,
-                    raster_type=raster_type
-                )
+        if config.azureRoot:
+            with f.open('rb') as src, open(dest, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+            if raster_type == "landsat":
+                dest_json = f.with_suffix('.json')
+                try:
+                    with f.with_suffix(".json").open('rb') as src_json, open(dest_json, 'wb') as dest_json_file:
+                        shutil.copyfileobj(src_json, dest_json_file)
+                except FileNotFoundError:
+                    logger.warning(
+                        "JSON file not found for raster",
+                        raster_file=f,
+                        json_file=dest_json,
+                        tier=tier.value,
+                        raster_type=raster_type
+                    )
+        else:
+            with config.fs.open(str(f), 'rb') as src, open(dest, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+            if raster_type == "landsat":
+                dest_json = f.with_suffix('.json')
+                try:
+                    with config.fs.open(str(f.with_suffix(".json")), 'rb') as src_json, open(dest_json, 'wb') as dest_json_file:
+                        shutil.copyfileobj(src_json, dest_json_file)
+                except FileNotFoundError:
+                    logger.warning(
+                        "JSON file not found for raster",
+                        raster_file=f,
+                        json_file=dest_json,
+                        tier=tier.value,
+                        raster_type=raster_type
+                    )
+        logger.info("Raster file copied", raster_file=f, output_path=dest, tier=tier.value, raster_type=raster_type)

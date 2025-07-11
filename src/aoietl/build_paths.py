@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import shutil
 import yaml
 import warnings
 from upath import UPath
@@ -8,6 +9,7 @@ import fsspec
 import geopandas as gpd
 import rasterio
 from shapely.geometry import box, Polygon
+import tempfile
 
 
 from .data_types import DataConfig
@@ -104,13 +106,16 @@ def build_tile_index(raster_paths: list[Path | UPath], fs: fsspec.AbstractFileSy
 
 # === 3. Filter tiles by AOI ===
 
-def filter_tiles_by_aoi(tile_index_gdf: gpd.GeoDataFrame, aoi_gdf: gpd.GeoDataFrame) -> list[str] | None:
+def filter_tiles_by_aoi(tile_index_gdf: gpd.GeoDataFrame, aoi_gdf: gpd.GeoDataFrame, config: DataConfig) -> list[str] | None:
     """
     Return tile index rows that intersect the AOI.
     """
     aoi_geom = aoi_gdf.union_all()
     filtered_gdf = tile_index_gdf[tile_index_gdf.intersects(aoi_geom)]
-    paths = [Path(x) for x in filtered_gdf['path'].tolist()]
+    if config.azureRoot:
+        paths = [Path(x) for x in filtered_gdf['path'].tolist()]
+    else:
+        paths = [UPath(x) for x in filtered_gdf['path'].tolist()]
     return paths if paths else None
 
 # === 4. Read vector subset ===
@@ -129,3 +134,26 @@ def read_vector_subset(vector_path: Path, aoi_gdf: gpd.GeoDataFrame) -> gpd.GeoD
         raise ValueError(f"Unsupported vector file type: {vector_path.suffix}. Only .gpkg and .parquet are supported.")
     gdf = gdf[gdf.intersects(aoi_geom)]
     return gdf
+
+
+def copy_vector_data_from_azure(vector_path: UPath, aoi_gdf: gpd.GeoDataFrame, config: DataConfig) -> None:
+    """
+    Copy vector files from Azure to local destination.
+    """
+    aoi_geom = aoi_gdf.union_all()
+    # TODO WE NEED TO HANDLE GEOPARQUET FILES HERE
+    suffix = vector_path.suffix.lower()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        # Download blob to temp file
+        with config.fs.open(str(vector_path), "rb") as remote_file:
+            shutil.copyfileobj(remote_file, tmp)
+
+        tmp_path = tmp.name
+
+    if suffix == '.gpkg':
+        gdf = gpd.read_file(tmp_path, bbox=aoi_geom.bounds)
+    elif suffix == '.parquet':
+        gdf = gpd.read_parquet(tmp_path, bbox=aoi_geom.bounds)
+
+    Path(tmp_path).unlink()
+    return gdf[gdf.intersects(aoi_geom)]
