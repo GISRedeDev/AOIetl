@@ -1,15 +1,55 @@
 import pytest
+import os
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 import geopandas as gpd
-
+from aoietl.data_types import DataConfig, TierRoots, DirectoryType
 
 BASE_DATA = Path(__file__).parent.resolve().joinpath("data")
 CONFIG_YAML = BASE_DATA.joinpath("config.yaml")
+CONFIG_YAML_FSSPEC = BASE_DATA.joinpath("config_fsspec.yaml")
 
 @pytest.fixture(scope="session")
 def test_config():
     return CONFIG_YAML
+
+@pytest.fixture(scope="session")
+def test_config_fsspec():
+    return CONFIG_YAML_FSSPEC
+
+@pytest.fixture
+def mock_setup_azure_filesystem():
+    """Mock setup_azure_filesystem to return local paths instead of Azure paths"""
+    
+    def mock_setup(config: DataConfig) -> TierRoots:
+        """
+        Mock version that returns local paths pointing to tests/data/{tier}/
+        """
+        tier_roots = TierRoots()
+        for directory_type in DirectoryType:
+            # Point to local test data directory
+            base_path = BASE_DATA.joinpath(directory_type.value)
+            setattr(tier_roots, directory_type.value, base_path)
+        return tier_roots
+    
+    with patch('aoietl.data_types.setup_azure_filesystem', side_effect=mock_setup):
+        yield mock_setup
+
+@pytest.fixture(scope="session")
+def mock_azure_env():
+    """Mock Azure environment variables"""
+    with patch.dict(os.environ, {
+        'AZURE_ACCOUNT_NAME': 'test_account',
+        'AZURE_ACCOUNT_KEY': 'test_key'
+    }):
+        yield
+
+@pytest.fixture
+def mock_azure_env_unset():
+    """Unset Azure environment variables"""
+    with patch.dict(os.environ, {}, clear=True):
+        yield
 
 
 @pytest.fixture
@@ -77,4 +117,4 @@ def aoi_gdf():
 
 @pytest.fixture
 def point_gpkg():
-    return "bronze/vector/random_points.gpkg"
+    return "bronze/random_test_points/random_points.gpkg"
