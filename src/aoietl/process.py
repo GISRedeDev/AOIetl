@@ -47,13 +47,13 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
     """
     config = build_config(config_path)
     validate_directories(config)
-    BASE_DIR = azure_blob.joinpath(config.azureRoot)
+    #BASE_DIR = azure_blob.joinpath(config.azureRoot)
     BASE_OUT_DIR = local_dir.joinpath(config.output_base)
-    aoi_gdf = gpd.read_file(BASE_DIR.joinpath(config.aoi))
+    aoi_gdf = gpd.read_file(local_dir.joinpath(config.aoi))
     for tier, directory_content in config.directories.items():
         logger.info("Processing tier", tier=tier)
         #BASE_AZURE_DIR = getattr(config.tier_roots, tier.value, None) 
-        BASE_TIER_DIR = BASE_DIR.joinpath(tier.value)     
+        BASE_TIER_DIR = azure_blob.joinpath(config.azureRoot, tier.value)     
         if directory_content.raster:
             process_rasters_using_paths(directory_content, tier, aoi_gdf, BASE_TIER_DIR, BASE_OUT_DIR, config)
         if directory_content.vector:
