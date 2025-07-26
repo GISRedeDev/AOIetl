@@ -27,6 +27,8 @@ from .build_paths import (
     filter_tiles_by_aoi,
     read_vector_subset,
     copy_vector_data_from_azure,
+    list_hdf_for_date,
+    build_hdf_tile_index
 )
 
 from .data_types import DataConfig, DirectoryType, DirectoryContent
@@ -66,7 +68,16 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 config,
                 error_for_missing_files
             )
-
+        if directory_content.hdf:
+            process_hdf_files_using_paths(
+                directory_content,
+                tier,
+                aoi_gdf,
+                BASE_TIER_DIR,
+                BASE_OUT_DIR,
+                config,
+                error_for_missing_files
+            )
 
 def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
     """
@@ -267,3 +278,54 @@ def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: D
                         raster_type=raster_type
                     )
         logger.info("Raster file copied", raster_file=f, output_path=dest, tier=tier.value, raster_type=raster_type)
+
+def process_hdf_files_using_paths(
+        directory_content: DirectoryContent,
+        tier: DirectoryType,
+        aoi_gdf: gpd.GeoDataFrame,
+        BASE_DIR: Path,
+        BASE_OUT_DIR: Path,
+        config: DataConfig,
+        error_for_missing_files: bool = False
+        ) -> None:
+    hdf_tiles = []
+    for hdf_type in directory_content.hdf:
+        try:
+            hdf_tiles = list_hdf_for_date(
+                root_path=BASE_DIR,
+                dataset_name=hdf_type,
+                config_date=config.date
+            )
+        except FileNotFoundError as e:
+            logger.error(
+                "Error listing HDF files for date",
+                hdf_type=hdf_type,
+                date=config.date,
+                tier=tier.value,
+                error=str(e)
+            )
+            if error_for_missing_files:
+                raise e
+        if hdf_tiles:
+            tile_index = build_hdf_tile_index(hdf_tiles, config.fs)
+            filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf, config)
+            if filtered_tiles:
+                logger.info("Copying HDF files to output", output_base=config.output_base)
+                copy_raster_files(filtered_tiles, BASE_OUT_DIR, tier, hdf_type, config)
+        else:
+            if error_for_missing_files:
+                logger.error(
+                    "No HDF files found for the specified date and type.",
+                    hdf_type=hdf_type,
+                    date=config.date,
+                    tier=tier
+                )
+                raise FileNotFoundError(
+                    f"No HDF files found for {hdf_type} on {config.date} in tier {tier.value}."
+                )
+            logger.warning(
+                "No HDF files found",
+                hdf_type=hdf_type,
+                date=config.date,
+                tier=tier
+            )
