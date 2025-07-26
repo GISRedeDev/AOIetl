@@ -7,6 +7,8 @@ from upath import UPath
 warnings.filterwarnings("ignore")
 import fsspec
 import geopandas as gpd
+import h5py
+import numpy as np
 import rasterio
 from shapely.geometry import box, Polygon
 import tempfile
@@ -103,6 +105,31 @@ def build_tile_index(raster_paths: list[Path | UPath], fs: fsspec.AbstractFileSy
             raise ValueError(f"Failed to reproject tile index to EPSG:4326: {e}")
     gdf = gdf.to_crs(4326)
     return gdf
+
+
+def build_hdf_tile_index(hdf_paths: list[Path | UPath], fs: fsspec.AbstractFileSystem | None = None) -> gpd.GeoDataFrame:
+    """
+    Build a GeoDataFrame with bounds polygons for each HDF path.
+    """
+    records = []
+    for path in hdf_paths:
+        if fs:
+            with fs.open(path) as f:
+                with h5py.File(f, "r") as hdf_file:
+                    lats = f["orbit_info/bounding_polygon_lat1"][:]
+                    lons = f["orbit_info/bounding_polygon_lon1"][:]
+        else:
+            with h5py.File(path, "r") as hdf_file:
+                lats = hdf_file["orbit_info/bounding_polygon_lat1"][:]
+                lons = hdf_file["orbit_info/bounding_polygon_lon1"][:]
+        if len(lats) != len(lons):
+            raise ValueError(f"Latitude and longitude arrays in {path} have different lengths.")
+        coords = list(zip(lons, lats))
+        polygon = Polygon(coords)
+        records.append({"geometry": polygon, "path": str(path)})
+
+    return gpd.GeoDataFrame(records, crs="EPSG:4326")
+
 
 # === 3. Filter tiles by AOI ===
 
