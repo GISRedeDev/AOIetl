@@ -78,6 +78,15 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 config,
                 error_for_missing_files
             )
+        if directory_content.parquet:
+            pass  # TODO: Implement parquet processing
+        if directory_content.table:
+            copy_csv_files(
+                directory_content,
+                BASE_OUT_DIR,
+                tier,
+                config
+            )
 
 def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
     """
@@ -117,6 +126,12 @@ def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: 
                 config,
                 error_for_missing_files
             )
+        if directory_content.hdf:
+            pass  # TODO: Implement HDF processing
+        if directory_content.parquet:
+            pass  # TODO: Implement parquet processing
+        if directory_content.table:
+            pass  # TODO: Implement table processing
 
 def process_vectors(
         directory_content: DirectoryContent,
@@ -329,3 +344,38 @@ def process_hdf_files_using_paths(
                 date=config.date,
                 tier=tier
             )
+
+def copy_csv_files(
+        directory_content: DirectoryContent,
+        BASE_OUT_DIR: Path,
+        tier: DirectoryType,
+        config: DataConfig
+) -> None:
+    """
+    Copy CSV files from the source directories to the output directory based on the configuration.
+
+    Args:
+        directory_content (DirectoryContent): Content of the directory for the current tier.
+        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
+        tier (DirectoryType): The current processing tier.
+        config (DataConfig): Configuration object containing processing parameters.
+    """
+    pass
+
+
+def copy_parquet_files(
+        directory_content: DirectoryContent,
+        BASE_OUT_DIR: Path,
+        tier: DirectoryType,
+        config: DataConfig
+) -> None:
+    """
+    Copy Parquet files from the source directories to the output directory based on the configuration.
+
+    Args:
+        directory_content (DirectoryContent): Content of the directory for the current tier.
+        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
+        tier (DirectoryType): The current processing tier.
+        config (DataConfig): Configuration object containing processing parameters.
+    """
+    pass  # TODO: Implement parquet processing

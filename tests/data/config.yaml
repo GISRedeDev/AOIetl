@@ -180,6 +180,10 @@ dataConfig:
         - name: random_test_points/random_points.parquet  # These are just for testing purpose
         - name: aoi.gpkg  # These are just for testing purposes
           layer: None
+      table:
+        - name: points.csv  # TODO IMPLEMENT THIS
+      parquet:
+        - name: bathymetry_reference.parquet  # TODO IMPLEMENT THIS
     silver:
       raster:
         - sentinel2
