@@ -50,7 +50,8 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
     """
     config = build_config(config_path)
     validate_directories(config)
-    #BASE_DIR = azure_blob.joinpath(config.azureRoot)
+    print("AZURE BLOB", azure_blob)
+    print("LOCAL DIR", local_dir)
     BASE_OUT_DIR = local_dir.joinpath(config.output_base)
     aoi_gdf = gpd.read_file(local_dir.joinpath(config.aoi))
     for tier, directory_content in config.directories.items():
@@ -82,6 +83,7 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
         if directory_content.parquet:
             copy_parquet_files(
                 directory_content,
+                BASE_TIER_DIR,
                 BASE_OUT_DIR,
                 tier,
                 config
@@ -89,6 +91,7 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
         if directory_content.table:
             copy_csv_files(
                 directory_content,
+                BASE_TIER_DIR,
                 BASE_OUT_DIR,
                 tier,
                 config
@@ -353,33 +356,38 @@ def process_hdf_files_using_paths(
 
 def copy_csv_files(
         directory_content: DirectoryContent,
+        BASE_DIR: Path,
         BASE_OUT_DIR: Path,
         tier: DirectoryType,
         config: DataConfig
 ) -> None:
     """
     Copy CSV files from the source directories to the output directory based on the configuration.
-
-    Args:
-        directory_content (DirectoryContent): Content of the directory for the current tier.
-        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
-        tier (DirectoryType): The current processing tier.
-        config (DataConfig): Configuration object containing processing parameters.
     """
-    for csv in directory_content.table:
-        csv_path = BASE_OUT_DIR.joinpath(tier.value, csv.name)
+    for csv_file in directory_content.table:
+        # Get the actual file path from the TabularFilename object
+        if config.azureRoot:
+            #BASE_TIER_DIR = Path(config.azureRoot).joinpath(tier.value)
+            source_path = BASE_DIR.joinpath(csv_file.name)
+        else:
+            BASE_TIER_DIR = getattr(config.tier_roots, tier.value, None)
+            source_path = BASE_TIER_DIR.joinpath(csv_file.name)
+        
+        csv_path = BASE_OUT_DIR.joinpath(tier.value, csv_file.name)
         if not csv_path.parent.exists():
             csv_path.parent.mkdir(parents=True, exist_ok=True)
+            
         if config.azureRoot:            
-            shutil.copy(csv, csv_path)            
+            shutil.copy(source_path, csv_path)            
         else:
-            with config.fs.open(str(csv), 'rb') as src, open(csv_path, 'wb') as dest_file:
+            with config.fs.open(str(source_path), 'rb') as src, open(csv_path, 'wb') as dest_file:
                 shutil.copyfileobj(src, dest_file)
-        logger.info("CSV file copied", csv_file=csv.name, output_path=csv_path, tier=tier.value)
+        logger.info("CSV file copied", csv_file=csv_file.name, output_path=csv_path, tier=tier.value)
 
 
 def copy_parquet_files(
         directory_content: DirectoryContent,
+        BASE_DIR: Path,
         BASE_OUT_DIR: Path,
         tier: DirectoryType,
         config: DataConfig
@@ -394,21 +402,39 @@ def copy_parquet_files(
         config (DataConfig): Configuration object containing processing parameters.
     """
     for parquet_file in directory_content.parquet:
+        # Get the actual file path from the ParquetFileName object
+        if config.azureRoot:
+            # For local/mounted Azure, construct the path
+            #BASE_TIER_DIR = Path(config.azureRoot).joinpath(tier.value)
+            source_path = BASE_DIR.joinpath(parquet_file.name)
+        else:
+            # For fsspec Azure, use tier_roots
+            BASE_TIER_DIR = getattr(config.tier_roots, tier.value, None)
+            source_path = BASE_TIER_DIR.joinpath(parquet_file.name)
+        
         parquet_path = BASE_OUT_DIR.joinpath(tier.value, parquet_file.name)
         if not parquet_path.parent.exists():
             parquet_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Copy the file first
         if config.azureRoot:
-            shutil.copy(parquet_file, parquet_path)
+            shutil.copy(source_path, parquet_path)
         else:
-            with config.fs.open(str(parquet_file), 'rb') as src, open(parquet_path, 'wb') as dest_file:
+            with config.fs.open(str(source_path), 'rb') as src, open(parquet_path, 'wb') as dest_file:
                 shutil.copyfileobj(src, dest_file)
-            
+        
+        # Filter by date after copying
         try:
             target_date = config.date.strftime("%Y-%m-%d")
             date_filter = [('date', '==', target_date)]
             df = pd.read_parquet(parquet_path, engine='pyarrow', filters=date_filter)
             df.to_parquet(parquet_path, engine='pyarrow', index=False)
-            logger.info("Parquet file copied", parquet_file=parquet_file.name, output_path=parquet_path, tier=tier.value)
+            
+            logger.info("Parquet file copied and filtered", 
+                       parquet_file=parquet_file.name, 
+                       output_path=parquet_path, 
+                       tier=tier.value,
+                       filtered_rows=len(df))
         except Exception as e:
             logger.warning(
                 "Failed to filter Parquet file by date",
