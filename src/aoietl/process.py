@@ -18,6 +18,7 @@ import shutil
 import warnings
 warnings.filterwarnings("ignore")
 import geopandas as gpd
+import pandas as pd
 from upath import UPath
 
 from .build_paths import (
@@ -27,6 +28,8 @@ from .build_paths import (
     filter_tiles_by_aoi,
     read_vector_subset,
     copy_vector_data_from_azure,
+    list_hdf_for_date,
+    build_hdf_tile_index
 )
 
 from .data_types import DataConfig, DirectoryType, DirectoryContent
@@ -66,7 +69,30 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 config,
                 error_for_missing_files
             )
-
+        if directory_content.hdf:
+            process_hdf_files_using_paths(
+                directory_content,
+                tier,
+                aoi_gdf,
+                BASE_TIER_DIR,
+                BASE_OUT_DIR,
+                config,
+                error_for_missing_files
+            )
+        if directory_content.parquet:
+            copy_parquet_files(
+                directory_content,
+                BASE_OUT_DIR,
+                tier,
+                config
+            )
+        if directory_content.table:
+            copy_csv_files(
+                directory_content,
+                BASE_OUT_DIR,
+                tier,
+                config
+            )
 
 def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
     """
@@ -106,6 +132,12 @@ def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: 
                 config,
                 error_for_missing_files
             )
+        if directory_content.hdf:
+            pass  # TODO: Implement HDF processing
+        if directory_content.parquet:
+            pass  # TODO: Implement parquet processing
+        if directory_content.table:
+            pass  # TODO: Implement table processing
 
 def process_vectors(
         directory_content: DirectoryContent,
@@ -267,3 +299,120 @@ def copy_raster_files(files: list[UPath | Path | str], output_dir: Path, tier: D
                         raster_type=raster_type
                     )
         logger.info("Raster file copied", raster_file=f, output_path=dest, tier=tier.value, raster_type=raster_type)
+
+def process_hdf_files_using_paths(
+        directory_content: DirectoryContent,
+        tier: DirectoryType,
+        aoi_gdf: gpd.GeoDataFrame,
+        BASE_DIR: Path,
+        BASE_OUT_DIR: Path,
+        config: DataConfig,
+        error_for_missing_files: bool = False
+        ) -> None:
+    hdf_tiles = []
+    for hdf_type in directory_content.hdf:
+        try:
+            hdf_tiles = list_hdf_for_date(
+                root_path=BASE_DIR,
+                dataset_name=hdf_type,
+                config_date=config.date
+            )
+        except FileNotFoundError as e:
+            logger.error(
+                "Error listing HDF files for date",
+                hdf_type=hdf_type,
+                date=config.date,
+                tier=tier.value,
+                error=str(e)
+            )
+            if error_for_missing_files:
+                raise e
+        if hdf_tiles:
+            tile_index = build_hdf_tile_index(hdf_tiles, config.fs)
+            filtered_tiles = filter_tiles_by_aoi(tile_index, aoi_gdf, config)
+            if filtered_tiles:
+                logger.info("Copying HDF files to output", output_base=config.output_base)
+                copy_raster_files(filtered_tiles, BASE_OUT_DIR, tier, hdf_type, config)
+        else:
+            if error_for_missing_files:
+                logger.error(
+                    "No HDF files found for the specified date and type.",
+                    hdf_type=hdf_type,
+                    date=config.date,
+                    tier=tier
+                )
+                raise FileNotFoundError(
+                    f"No HDF files found for {hdf_type} on {config.date} in tier {tier.value}."
+                )
+            logger.warning(
+                "No HDF files found",
+                hdf_type=hdf_type,
+                date=config.date,
+                tier=tier
+            )
+
+def copy_csv_files(
+        directory_content: DirectoryContent,
+        BASE_OUT_DIR: Path,
+        tier: DirectoryType,
+        config: DataConfig
+) -> None:
+    """
+    Copy CSV files from the source directories to the output directory based on the configuration.
+
+    Args:
+        directory_content (DirectoryContent): Content of the directory for the current tier.
+        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
+        tier (DirectoryType): The current processing tier.
+        config (DataConfig): Configuration object containing processing parameters.
+    """
+    for csv in directory_content.table:
+        csv_path = BASE_OUT_DIR.joinpath(tier.value, csv.name)
+        if not csv_path.parent.exists():
+            csv_path.parent.mkdir(parents=True, exist_ok=True)
+        if config.azureRoot:
+            with config.fs.open(str(csv), 'rb') as src, open(csv_path, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+        else:
+            shutil.copy(csv, csv_path)
+        logger.info("CSV file copied", csv_file=csv.name, output_path=csv_path, tier=tier.value)
+
+
+def copy_parquet_files(
+        directory_content: DirectoryContent,
+        BASE_OUT_DIR: Path,
+        tier: DirectoryType,
+        config: DataConfig
+) -> None:
+    """
+    Copy Parquet files from the source directories to the output directory based on the configuration.
+
+    Args:
+        directory_content (DirectoryContent): Content of the directory for the current tier.
+        BASE_OUT_DIR (Path): Base output directory where processed files will be saved.
+        tier (DirectoryType): The current processing tier.
+        config (DataConfig): Configuration object containing processing parameters.
+    """
+    for parquet_file in directory_content.parquet:
+        parquet_path = BASE_OUT_DIR.joinpath(tier.value, parquet_file.name)
+        if not parquet_path.parent.exists():
+            parquet_path.parent.mkdir(parents=True, exist_ok=True)
+        if config.azureRoot:
+            with config.fs.open(str(parquet_file), 'rb') as src, open(parquet_path, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+        else:
+            shutil.copy(parquet_file, parquet_path)
+        try:
+            target_date = config.date.strftime("%Y-%m-%d")
+            date_filter = [('date', '==', target_date)]
+            df = pd.read_parquet(parquet_path, engine='pyarrow', filters=date_filter)
+            df.to_parquet(parquet_path, engine='pyarrow', index=False)
+            logger.info("Parquet file copied", parquet_file=parquet_file.name, output_path=parquet_path, tier=tier.value)
+        except Exception as e:
+            logger.warning(
+                "Failed to filter Parquet file by date",
+                parquet_file=parquet_file.name,
+                config_date=config.date,
+                error=str(e),
+                tier=tier.value
+            )

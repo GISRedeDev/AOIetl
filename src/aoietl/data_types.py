@@ -14,7 +14,7 @@ class RasterType(str, Enum):
     # TODO add more raster types as needed
 
 class HDFType(str, Enum):
-    ICESAT2 = "icesat-2"
+    ICESAT2 = "icesat2"
     # TODO add more HDF types as needed
 
 

@@ -7,6 +7,8 @@ from upath import UPath
 warnings.filterwarnings("ignore")
 import fsspec
 import geopandas as gpd
+import h5py
+import numpy as np
 import rasterio
 from shapely.geometry import box, Polygon
 import tempfile
@@ -61,6 +63,33 @@ def list_rasters_for_date(root_path: Path | UPath, dataset_name: str, config_dat
 
     return matching_files
 
+
+def list_hdf_for_date(root_path: Path | UPath, dataset_name: str, config_date) -> list[Path]:
+    """
+    List HDF files for a given date in the specified dataset directory.
+    
+    Args:
+        root_path (Path | UPath): The root path to the dataset.
+        dataset_name (str): The name of the dataset.
+        config_date (datetime): The date to filter files by.
+    
+    Returns:
+        list[Path]: A list of matching HDF file paths.
+    """
+    hdf_files = [x for x in root_path.joinpath(dataset_name).iterdir() if x.is_file() and x.suffix in ['.hdf', '.nc']]
+    
+    matching_files = []
+    target_date_str = config_date.strftime("%Y%m%d")
+
+    for f in hdf_files:
+        name = f.name
+        match = re.search(r"(\d{8})", name)
+        if match and match.group(1) == target_date_str:
+            matching_files.append(f)
+
+    return matching_files
+
+
 def make_tile_bounds_geom(src: rasterio.io.DatasetReader) -> Polygon:
     """
     Create a bounds polygon from a rasterio dataset.
@@ -103,6 +132,32 @@ def build_tile_index(raster_paths: list[Path | UPath], fs: fsspec.AbstractFileSy
             raise ValueError(f"Failed to reproject tile index to EPSG:4326: {e}")
     gdf = gdf.to_crs(4326)
     return gdf
+
+
+def build_hdf_tile_index(hdf_paths: list[Path | UPath], fs: fsspec.AbstractFileSystem | None = None) -> gpd.GeoDataFrame:
+    """
+    Build a GeoDataFrame with bounds polygons for each HDF path.
+    """
+    records = []
+    for path in hdf_paths:
+        if fs:
+            with fs.open(path) as f:
+                with h5py.File(f, "r") as hdf_file:
+                    # Fix: Use hdf_file instead of f
+                    lats = hdf_file["orbit_info/bounding_polygon_lat1"][:]
+                    lons = hdf_file["orbit_info/bounding_polygon_lon1"][:]
+        else:
+            with h5py.File(path, "r") as hdf_file:
+                lats = hdf_file["orbit_info/bounding_polygon_lat1"][:]
+                lons = hdf_file["orbit_info/bounding_polygon_lon1"][:]
+        if len(lats) != len(lons):
+            raise ValueError(f"Latitude and longitude arrays in {path} have different lengths.")
+        coords = list(zip(lons, lats))
+        polygon = Polygon(coords)
+        records.append({"geometry": polygon, "path": str(path)})
+
+    return gpd.GeoDataFrame(records, crs="EPSG:4326")
+
 
 # === 3. Filter tiles by AOI ===
 
