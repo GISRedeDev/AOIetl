@@ -18,6 +18,7 @@ import shutil
 import warnings
 warnings.filterwarnings("ignore")
 import geopandas as gpd
+import pandas as pd
 from upath import UPath
 
 from .build_paths import (
@@ -79,7 +80,12 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 error_for_missing_files
             )
         if directory_content.parquet:
-            pass  # TODO: Implement parquet processing
+            copy_parquet_files(
+                directory_content,
+                BASE_OUT_DIR,
+                tier,
+                config
+            )
         if directory_content.table:
             copy_csv_files(
                 directory_content,
@@ -360,7 +366,16 @@ def copy_csv_files(
         tier (DirectoryType): The current processing tier.
         config (DataConfig): Configuration object containing processing parameters.
     """
-    pass
+    for csv in directory_content.table:
+        csv_path = BASE_OUT_DIR.joinpath(tier.value, csv.name)
+        if not csv_path.parent.exists():
+            csv_path.parent.mkdir(parents=True, exist_ok=True)
+        if config.azureRoot:
+            with config.fs.open(str(csv), 'rb') as src, open(csv_path, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+        else:
+            shutil.copy(csv, csv_path)
+        logger.info("CSV file copied", csv_file=csv.name, output_path=csv_path, tier=tier.value)
 
 
 def copy_parquet_files(
@@ -378,4 +393,26 @@ def copy_parquet_files(
         tier (DirectoryType): The current processing tier.
         config (DataConfig): Configuration object containing processing parameters.
     """
-    pass  # TODO: Implement parquet processing
+    for parquet_file in directory_content.parquet:
+        parquet_path = BASE_OUT_DIR.joinpath(tier.value, parquet_file.name)
+        if not parquet_path.parent.exists():
+            parquet_path.parent.mkdir(parents=True, exist_ok=True)
+        if config.azureRoot:
+            with config.fs.open(str(parquet_file), 'rb') as src, open(parquet_path, 'wb') as dest_file:
+                shutil.copyfileobj(src, dest_file)
+        else:
+            shutil.copy(parquet_file, parquet_path)
+        try:
+            target_date = config.date.strftime("%Y-%m-%d")
+            date_filter = [('date', '==', target_date)]
+            df = pd.read_parquet(parquet_path, engine='pyarrow', filters=date_filter)
+            df.to_parquet(parquet_path, engine='pyarrow', index=False)
+            logger.info("Parquet file copied", parquet_file=parquet_file.name, output_path=parquet_path, tier=tier.value)
+        except Exception as e:
+            logger.warning(
+                "Failed to filter Parquet file by date",
+                parquet_file=parquet_file.name,
+                config_date=config.date,
+                error=str(e),
+                tier=tier.value
+            )
