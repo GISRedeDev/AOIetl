@@ -370,11 +370,11 @@ def copy_csv_files(
         csv_path = BASE_OUT_DIR.joinpath(tier.value, csv.name)
         if not csv_path.parent.exists():
             csv_path.parent.mkdir(parents=True, exist_ok=True)
-        if config.azureRoot:
+        if config.azureRoot:            
+            shutil.copy(csv, csv_path)            
+        else:
             with config.fs.open(str(csv), 'rb') as src, open(csv_path, 'wb') as dest_file:
                 shutil.copyfileobj(src, dest_file)
-        else:
-            shutil.copy(csv, csv_path)
         logger.info("CSV file copied", csv_file=csv.name, output_path=csv_path, tier=tier.value)
 
 
@@ -398,10 +398,11 @@ def copy_parquet_files(
         if not parquet_path.parent.exists():
             parquet_path.parent.mkdir(parents=True, exist_ok=True)
         if config.azureRoot:
+            shutil.copy(parquet_file, parquet_path)
+        else:
             with config.fs.open(str(parquet_file), 'rb') as src, open(parquet_path, 'wb') as dest_file:
                 shutil.copyfileobj(src, dest_file)
-        else:
-            shutil.copy(parquet_file, parquet_path)
+            
         try:
             target_date = config.date.strftime("%Y-%m-%d")
             date_filter = [('date', '==', target_date)]
