@@ -115,6 +115,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "adlfs" },
+    { name = "azure-storage-file-share" },
     { name = "fsspec" },
     { name = "geopandas" },
     { name = "h5py" },
@@ -130,6 +131,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "adlfs", specifier = ">=2024.12.0" },
+    { name = "azure-storage-file-share", specifier = ">=12.22.0" },
     { name = "fsspec", specifier = ">=2025.5.1" },
     { name = "geopandas", specifier = ">=1.1.0" },
     { name = "h5py", specifier = ">=3.14.0" },
@@ -208,6 +210,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8b/f3/f764536c25cc3829d36857167f03933ce9aee2262293179075439f3cd3ad/azure_storage_blob-12.25.1.tar.gz", hash = "sha256:4f294ddc9bc47909ac66b8934bd26b50d2000278b10ad82cc109764fdc6e0e3b", size = 570541, upload-time = "2025-03-27T17:13:05.424Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/57/33/085d9352d416e617993821b9d9488222fbb559bc15c3641d6cbd6d16d236/azure_storage_blob-12.25.1-py3-none-any.whl", hash = "sha256:1f337aab12e918ec3f1b638baada97550673911c4ceed892acc8e4e891b74167", size = 406990, upload-time = "2025-03-27T17:13:06.879Z" },
+]
+
+[[package]]
+name = "azure-storage-file-share"
+version = "12.22.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "cryptography" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/7e/5a0b544344c7370da02ef19e2a79dc9c87649e9c565af08f39975d87deaa/azure_storage_file_share-12.22.0.tar.gz", hash = "sha256:e583c8e086ee7d6ec50cc23daf42839c18dce11b36b3d1364c13714c08b53452", size = 355213, upload-time = "2025-07-16T22:00:41.641Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/de/f59eaad7bf703c585637c25538fad28cc48a5bff95be6dc04902741b99f8/azure_storage_file_share-12.22.0-py3-none-any.whl", hash = "sha256:a42482a7d1d940780f4bf7eda5cb031076c8571b17dda4414f0b91d5111d0eb2", size = 291272, upload-time = "2025-07-16T22:00:43.54Z" },
 ]
 
 [[package]]
