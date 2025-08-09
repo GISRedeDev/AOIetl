@@ -82,37 +82,47 @@ def upload_file_to_share(local_folder: Path):
         logger.info(f"✅ Connected to share: {share_properties.name}")
 
         clear_azure_file_share(share_client)
+
+        local_folder = Path(local_folder).resolve()
+        logger.info(f"📁 Starting upload from: {local_folder}")
+        
+        if not local_folder.exists():
+            logger.error(f"❌ Local folder does not exist: {local_folder}")
+            return
+        
+        file_count = 0
+        for file_path in local_folder.rglob("*"):
+            if file_path.is_file():
+                file_count += 1
+                relative_path = file_path.relative_to(local_folder)
+                remote_path = str(relative_path).replace("\\", "/")
+                
+                logger.info(f"📤 Uploading {file_path.name} ({file_path.stat().st_size:,} bytes)")
+                
+                try:
+                    # Create directories
+                    parent_dir = str(Path(remote_path).parent)
+                    if parent_dir != ".":
+                        create_directories_recursive(share_client, parent_dir)
+                    
+                    # Get file client and upload
+                    file_client = share_client.get_file_client(remote_path)
+                    
+                    with open(file_path, "rb") as data:
+                        file_client.upload_file(data)
+                    
+                    logger.info(f"✅ Success: {remote_path}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error uploading {remote_path}: {e}")
+                    continue
+        
+        logger.info(f"🎉 Upload complete! {file_count} files uploaded.")
         
     except Exception as e:
         logger.error(f"❌ Failed to connect to Azure: {e}")
         return
-    
-    local_folder = Path(local_folder).resolve()
-    logger.info(f"Uploading files from: {local_folder}")
-    for file_path in local_folder.rglob("*"):
-        if file_path.is_file():
-            relative_path = file_path.relative_to(local_folder)
-            remote_path = str(relative_path).replace("\\", "/")
-            
-            logger.info(f"Uploading {file_path.name} ({file_path.stat().st_size:,} bytes)")
-            
-            try:
-                # Create directories
-                parent_dir = str(Path(remote_path).parent)
-                if parent_dir != ".":
-                    create_directories_recursive(share_client, parent_dir)
-                
-                # Get file client and upload
-                file_client = share_client.get_file_client(remote_path)
-                
-                with open(file_path, "rb") as data:
-                    file_client.upload_file(data)
-                
-                logger.info(f"✅ Success: {remote_path}")
-                
-            except Exception as e:
-                logger.error(f"❌ Error: {e}")
-                continue
+
 
 def create_directories_recursive(share_client, dir_path):
     """Create directory structure recursively."""
