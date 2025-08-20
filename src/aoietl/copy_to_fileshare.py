@@ -18,27 +18,27 @@ def clear_azure_file_share(share_client):
             
             for item in items:
                 item_path = f"{dir_path}/{item['name']}" if dir_path else item['name']
-                
-                if item['is_directory'] and item['name'] not in ["reference", "repos"]:
-                    # It's a directory - recursively delete its contents first
+                if item["name"] not in ["reference", "repos"]: 
                     looger.warning(f"****************DELETING {item['name']}")
-                    sub_dir_client = share_client.get_directory_client(item_path)
-                    delete_directory_contents(sub_dir_client, item_path)
-                    
-                    # Then delete the empty directory
-                    try:
-                        sub_dir_client.delete_directory()
-                        logger.info(f"   Deleted directory: {item_path}")
-                    except Exception as e:
-                        logger.info(f"Failed to delete directory {item_path}: {e}")
-                else:
-                    # It's a file - delete it
-                    try:
-                        file_client = share_client.get_file_client(item_path)
-                        file_client.delete_file()
-                        logger.info(f"Deleted file: {item_path}")
-                    except Exception as e:
-                        logger.error(f"Failed to delete file {item_path}: {e}")
+                    if item['is_directory']:
+                        # It's a directory - recursively delete its contents first
+                        sub_dir_client = share_client.get_directory_client(item_path)
+                        delete_directory_contents(sub_dir_client, item_path)
+                        
+                        # Then delete the empty directory
+                        try:
+                            sub_dir_client.delete_directory()
+                            logger.info(f"   Deleted directory: {item_path}")
+                        except Exception as e:
+                            logger.info(f"Failed to delete directory {item_path}: {e}")
+                    else:
+                        # It's a file - delete it
+                        try:
+                            file_client = share_client.get_file_client(item_path)
+                            file_client.delete_file()
+                            logger.info(f"Deleted file: {item_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to delete file {item_path}: {e}")
                         
         except Exception as e:
             logger.error(f"Failed to list contents of {dir_path}: {e}")
