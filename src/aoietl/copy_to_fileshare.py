@@ -21,6 +21,7 @@ def clear_azure_file_share(share_client):
                 
                 if item['is_directory'] and item['name'] not in ["reference", "repos"]:
                     # It's a directory - recursively delete its contents first
+                    looger.warning(f"****************DELETING {item['name']")
                     sub_dir_client = share_client.get_directory_client(item_path)
                     delete_directory_contents(sub_dir_client, item_path)
                     
