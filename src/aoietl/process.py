@@ -476,7 +476,11 @@ def copy_reference_blob_to_local(local_reference_dir: Path):
     blobs = container_client.list_blobs()
     for blob in blobs:
         local_path = local_reference_dir / blob.name
-        local_path.parent.mkdir(parents=True, exist_ok=True)
+        parent = local_path.parent
+        if parent.exists() and not parent.is_dir():
+            logger.error(f"Cannot create directory {parent}: a file with that name already exists.")
+            raise FileExistsError(f"Cannot create directory {parent}: a file with that name already exists.")
+        parent.mkdir(parents=True, exist_ok=True)
         logger.info("Downloading blob", blob_name=blob.name, local_path=str(local_path))
         with open(local_path, "wb") as file:
             download_stream = container_client.download_blob(blob)
