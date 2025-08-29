@@ -472,6 +472,8 @@ def copy_reference_blob_to_local(local_reference_dir: Path):
 
     blobs = container_client.list_blobs()
     for blob in blobs:
+        logger.info(f"BLOB {blob.name}"
+    for blob in blobs:
         local_path = local_reference_dir / blob.name
         parent = local_path.parent
         # Defensive: If parent exists and is a file, skip and warn
