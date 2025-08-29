@@ -451,9 +451,6 @@ def copy_parquet_files(
 def copy_reference_blob_to_local(local_reference_dir: Path):
     """
     Recursively copy all files from the 'reference' blob container to a local directory.
-
-    Args:
-        local_reference_dir (Path): Local directory to copy blobs into.
     """
     account_name = os.getenv("AZURE_ACCOUNT_NAME")
     account_key = os.getenv("AZURE_ACCOUNT_KEY")
@@ -477,9 +474,10 @@ def copy_reference_blob_to_local(local_reference_dir: Path):
     for blob in blobs:
         local_path = local_reference_dir / blob.name
         parent = local_path.parent
+        # Defensive: If parent exists and is a file, skip and warn
         if parent.exists() and not parent.is_dir():
-            logger.error(f"Cannot create directory {parent}: a file with that name already exists.")
-            raise FileExistsError(f"Cannot create directory {parent}: a file with that name already exists.")
+            logger.warning(f"Skipping blob {blob.name}: cannot create directory {parent} because a file with that name exists.")
+            continue
         parent.mkdir(parents=True, exist_ok=True)
         logger.info("Downloading blob", blob_name=blob.name, local_path=str(local_path))
         with open(local_path, "wb") as file:
