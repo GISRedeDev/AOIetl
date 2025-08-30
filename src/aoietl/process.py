@@ -52,13 +52,10 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
     """
     config = build_config(config_path)
     validate_directories(config)
-    print("AZURE BLOB", azure_blob)
-    print("LOCAL DIR", local_dir)
     BASE_OUT_DIR = local_dir.joinpath(config.output_base)
     aoi_gdf = gpd.read_file(local_dir.joinpath(config.aoi))
     for tier, directory_content in config.directories.items():
         logger.info("Processing tier", tier=tier)
-        #BASE_AZURE_DIR = getattr(config.tier_roots, tier.value, None) 
         BASE_TIER_DIR = azure_blob.joinpath(config.azureRoot, tier.value)     
         if directory_content.raster:
             process_rasters_using_paths(directory_content, tier, aoi_gdf, BASE_TIER_DIR, BASE_OUT_DIR, config)
@@ -98,7 +95,6 @@ def process(config_path: Path, azure_blob: Path, local_dir: Path, error_for_miss
                 tier,
                 config
             )
-    copy_reference_blob_to_local(local_dir.joinpath("reference"))
 
 def process_fsspec(config_path: Path, local_dir: Path, error_for_missing_files: bool = False) -> None:
     """
@@ -446,44 +442,3 @@ def copy_parquet_files(
                 error=str(e),
                 tier=tier.value
             )
-
-
-def copy_reference_blob_to_local(local_reference_dir: Path):
-    """
-    Recursively copy all files from the 'reference' blob container to a local directory.
-
-    Args:
-        local_reference_dir (Path): Local directory to copy blobs into.
-    """
-    account_name = os.getenv("AZURE_ACCOUNT_NAME")
-    account_key = os.getenv("AZURE_ACCOUNT_KEY")
-    container_name = "reference"
-
-    if not account_name or not account_key:
-        raise ValueError("AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY must be set")
-
-    conn_str = (
-        f"DefaultEndpointsProtocol=https;"
-        f"AccountName={account_name};"
-        f"AccountKey={account_key};"
-        f"EndpointSuffix=core.windows.net"
-    )
-    blob_service = BlobServiceClient.from_connection_string(conn_str)
-    container_client = blob_service.get_container_client(container_name)
-
-    logger.info("Copying all blobs from 'reference' container to local directory", local_dir=str(local_reference_dir))
-
-    blobs = container_client.list_blobs()
-    for blob in blobs:
-        local_path = local_reference_dir / blob.name
-        parent = local_path.parent
-        if parent.exists() and not parent.is_dir():
-            logger.error(f"Cannot create directory {parent}: a file with that name already exists.")
-            raise FileExistsError(f"Cannot create directory {parent}: a file with that name already exists.")
-        parent.mkdir(parents=True, exist_ok=True)
-        logger.info("Downloading blob", blob_name=blob.name, local_path=str(local_path))
-        with open(local_path, "wb") as file:
-            download_stream = container_client.download_blob(blob)
-            file.write(download_stream.readall())
-
-    logger.info("✅ All reference blobs copied to local directory", local_dir=str(local_reference_dir))
