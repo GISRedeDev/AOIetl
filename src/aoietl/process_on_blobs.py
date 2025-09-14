@@ -66,10 +66,21 @@ def process_on_blobs(config_blob_path: str, aoi_blob_path: str, error_for_missin
         #             config,
         #             blob_client,
         #         )
-        if directory_content.vector:
-            process_vectors_and_tables_in_blob(directory_content.vector, blob_client, tier)
-        if directory_content.table:
-            process_vectors_and_tables_in_blob(directory_content.table, blob_client, tier)
+        # if directory_content.vector:
+        #     process_vectors_and_tables_in_blob(directory_content.vector, blob_client, tier)
+        # if directory_content.table:
+        #     process_vectors_and_tables_in_blob(directory_content.table, blob_client, tier)
+        if directory_content.hdf:
+            for hdf_type in directory_content.hdf:
+                process_hdf_in_blob(
+                    tier,
+                    hdf_type,
+                    aoi_gdf,
+                    root_path,
+                    fs,
+                    config,
+                    blob_client,
+                )
     aoi_gpkg.unlink(missing_ok=True)
     config_path.unlink(missing_ok=True)
 
@@ -150,4 +161,36 @@ def process_vectors_and_tables_in_blob(
             dest_container="staging-data",
             source_blob_paths=[str(v.name)],
             dest_prefix=dest_prefix
+        )
+
+
+def process_hdf_in_blob(
+        tier: str,
+        hdf_type: str,
+        aoi_gdf: gpd.GeoDataFrame,
+        root_path: UPath,
+        fs: fsspec.AbstractFileSystem,
+        config: DataConfig,
+        blob_service_client: BlobServiceClient,
+
+) -> None:
+    hdf_files = list_hdf_for_date(root_path, hdf_type, config.date)
+    logger.info(f"Found {len(hdf_files)} HDF files for {hdf_type} in tier {tier}")
+    if not hdf_files:
+        logger.warning(f"No HDF files found for {hdf_type} in tier {tier}")
+        return None
+    # Build tile index
+    tile_index_gdf = build_hdf_tile_index(hdf_files, fs=fs)
+    # Filter by AOI
+    filtered_paths = filter_tiles_by_aoi(tile_index_gdf, aoi_gdf, config)
+    logger.info(f"Filtered to {len(filtered_paths) if filtered_paths else 0} HDF files intersecting AOI")
+    if filtered_paths:
+        source_blob_paths = [str(p.relative_to(p.anchor)) if hasattr(p, "anchor") else str(p) for p in filtered_paths]
+        copy_blobs_to_staging(
+            blob_service_client=blob_service_client,
+            source_container=tier,
+            dest_container="staging-data",
+            source_blob_paths=source_blob_paths,
+            dest_prefix=f"{tier.value}/{hdf_type}",
+            copy_json=False
         )

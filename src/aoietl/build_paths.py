@@ -136,7 +136,7 @@ def build_hdf_tile_index(hdf_paths: list[Path | UPath], fs: fsspec.AbstractFileS
     Build a GeoDataFrame with bounds polygons for each HDF path.
     """
     records = []
-    for path in hdf_paths:
+    for path in [str(x) for x in hdf_paths]:
         if fs:
             with fs.open(path) as f:
                 with h5py.File(f, "r") as hdf_file:
