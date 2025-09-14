@@ -40,10 +40,8 @@ def build_config(config_yaml_path: str | Path) -> DataConfig:
 
 def list_rasters_for_date(root_path: Path | UPath, dataset_name: str, config_date) -> list[Path]:
     raster_files = [x for x in root_path.joinpath(dataset_name).iterdir() if x.is_file() and x.suffix == '.tif']
-
     matching_files = []
     target_date_str = config_date.strftime("%Y%m%d")
-
     for f in raster_files:
         name = f.name
         # Extract date depending on dataset
@@ -52,7 +50,7 @@ def list_rasters_for_date(root_path: Path | UPath, dataset_name: str, config_dat
             match = re.search(r"S2.\w+_(\d{8})T\d{6}_", name)
         elif "LC" in name:
             # Landsat
-            match = re.search(r"LC.._L2SP_\d{6}_(\d{8})_", name)
+           match = re.search(r"LC\d{2}_L1TP_\d{6}_(\d{8})_", name)
         else:
             match = None
 
@@ -60,7 +58,6 @@ def list_rasters_for_date(root_path: Path | UPath, dataset_name: str, config_dat
             date_str = match.group(1)
             if date_str == target_date_str:
                 matching_files.append(f)
-
     return matching_files
 
 
@@ -112,7 +109,7 @@ def build_tile_index(raster_paths: list[Path | UPath], fs: fsspec.AbstractFileSy
     raster_crs: str | None = None
     for path in raster_paths:
         if fs:
-            with fs.open(path) as f:
+            with fs.open(str(path)) as f:
                 with rasterio.open(f) as src:
                     if not raster_crs:
                         raster_crs = src.crs
@@ -139,7 +136,7 @@ def build_hdf_tile_index(hdf_paths: list[Path | UPath], fs: fsspec.AbstractFileS
     Build a GeoDataFrame with bounds polygons for each HDF path.
     """
     records = []
-    for path in hdf_paths:
+    for path in [str(x) for x in hdf_paths]:
         if fs:
             with fs.open(path) as f:
                 with h5py.File(f, "r") as hdf_file:
@@ -191,7 +188,7 @@ def read_vector_subset(vector_path: Path, aoi_gdf: gpd.GeoDataFrame) -> gpd.GeoD
     return gdf
 
 
-def copy_vector_data_from_azure(vector_path: UPath, aoi_gdf: gpd.GeoDataFrame, config: DataConfig) -> None:
+def copy_vector_data_from_azure(vector_path: UPath, aoi_gdf: gpd.GeoDataFrame, fs: fsspec.AbstractFileSystem) -> None:
     """
     Copy vector files from Azure to local destination.
     """
@@ -200,7 +197,7 @@ def copy_vector_data_from_azure(vector_path: UPath, aoi_gdf: gpd.GeoDataFrame, c
     suffix = vector_path.suffix.lower()
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         # Download blob to temp file
-        with config.fs.open(str(vector_path), "rb") as remote_file:
+        with fs.open(str(vector_path), "rb") as remote_file:
             shutil.copyfileobj(remote_file, tmp)
 
         tmp_path = tmp.name
