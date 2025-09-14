@@ -55,21 +55,21 @@ def process_on_blobs(config_blob_path: str, aoi_blob_path: str, error_for_missin
     for tier, directory_content in config.directories.items():
         logger.info("Processing tier", tier=tier)
         fs, root_path = setup_azure_filesystem(config, tier)
-        # if directory_content.raster:
-        #     for raster_type in directory_content.raster:
-        #         process_rasters_in_blob(
-        #             tier,
-        #             raster_type,
-        #             aoi_gdf,
-        #             root_path,
-        #             fs,
-        #             config,
-        #             blob_client,
-        #         )
-        # if directory_content.vector:
-        #     process_vectors_and_tables_in_blob(directory_content.vector, blob_client, tier)
-        # if directory_content.table:
-        #     process_vectors_and_tables_in_blob(directory_content.table, blob_client, tier)
+        if directory_content.raster:
+            for raster_type in directory_content.raster:
+                process_rasters_in_blob(
+                    tier,
+                    raster_type,
+                    aoi_gdf,
+                    root_path,
+                    fs,
+                    config,
+                    blob_client,
+                )
+        if directory_content.vector:
+            process_vectors_and_tables_in_blob(directory_content.vector, blob_client, tier)
+        if directory_content.table:
+            process_vectors_and_tables_in_blob(directory_content.table, blob_client, tier)
         if directory_content.hdf:
             for hdf_type in directory_content.hdf:
                 process_hdf_in_blob(
