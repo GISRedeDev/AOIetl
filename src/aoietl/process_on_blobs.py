@@ -82,7 +82,7 @@ def process_on_blobs(config_blob_path: str, aoi_blob_path: str, error_for_missin
                     blob_client,
                 )
     aoi_gpkg.unlink(missing_ok=True)
-    config_path.unlink(missing_ok=True)
+    #config_path.unlink(missing_ok=True)
 
 
 def blob_prefix_exists(blob_service_client: BlobServiceClient, container_name: str, prefix: str) -> bool:
